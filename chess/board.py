@@ -1,52 +1,77 @@
 from __future__ import annotations
 
-import itertools
 import tkinter as tk
+from itertools import product
 
 import chess
 
 from .constants import THEME, TILE_SIZE
-
-# def function that will check whether
+from .GUI import Root
 
 
 class Tile(tk.Frame):
-    def __init__(self, cb: ChessBoard, bg, pos: tuple[int, int]):
+    """Tile of the Chessboard, able to house a chess Piece"""
+
+    def __init__(self, cb: ChessBoard, pos: tuple[int, int]) -> None:
         # Create a tile in chessboard's grid
-        super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=bg)
+        super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=THEME[sum(pos) % 2])
         self.grid(row=pos[0], column=pos[1])
 
+        self.pos = pos
         # Tiles are empty until a Piece is attached
-        self.piece: chess.Piece | None = None
+        self._piece: chess.Piece | None = None
+
+    @property
+    def piece(self) -> chess.Piece | None:
+        return self._piece
+
+    @piece.setter
+    def piece(self, new_piece: chess.Piece) -> None:
+
+        # If a piece already exists on new spot, remove display and kill it
+        if self._piece:
+            self._piece.remove(kill=True)
+
+        # Remove from old spot and show in new_spot
+        new_piece.remove()
+        new_piece.show(self.pos)
+
+        self._piece = new_piece
 
 
 class ChessBoard(tk.Frame):
-    def __init__(self, master, theme: tuple[str, str] = THEME, **kwargs) -> None:
+    """Chessboard with Root as Master"""
+
+    def __init__(self, master: Root) -> None:
         # Initialise chessboard frame and display it
-        super().__init__(master, width=8 * TILE_SIZE, height=8 * TILE_SIZE, **kwargs)
+        super().__init__(master, width=8 * TILE_SIZE, height=8 * TILE_SIZE)
         self.pack()
-        
+
         # Initialise 8 x 8 tiles with alternating colors
-        self.tiles = {
-            pos: Tile(self, theme[sum(pos) % 2], pos)
-            for pos in itertools.product(range(8), range(8))
-        }
+        self.tiles = {pos: Tile(self, pos) for pos in product(range(8), range(8))}
 
-
+        # Initialise starting position
         self.reset()
 
-        self.master.bind("<KeyPress>", self.keypress_response, add=True)
+        # Bind event logic
+        self.master.bind("<KeyPress>", self.keypress_handler, add=True)
 
-    def clear(self):
-        [tile.piece.remove() for tile in self.tiles.values() if tile.piece]
+    def clear(self) -> None:
+        """Clears pieces from chessboard"""
+        for tile in self.tiles.values():
+            if tile.piece:
+                tile.piece.remove()
+                tile.piece.alive = False
 
-    def reset(self):
+    def reset(self) -> None:
+        """Clears pieces and sets starting position"""
         self.clear()
         for row, color, pieces in chess.SETUP:
-            for col, piece in enumerate(pieces):
-                self.tiles[(row, col)].piece = piece(self, color, (row, col))
+            for col, Piece in enumerate(pieces):
+                self.tiles[(row, col)].piece = Piece(self, color, (row, col))
 
-    def keypress_response(self, event):
+    def keypress_handler(self, event) -> None:
+        """Handles keypress events"""
         if event.char == "q":
             self.clear()
         elif event.char == "w":
