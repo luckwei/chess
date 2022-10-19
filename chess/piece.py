@@ -1,3 +1,4 @@
+from ast import match_case
 import random
 from abc import ABC, abstractmethod
 from dataclasses import InitVar, dataclass, field
@@ -96,35 +97,43 @@ class Piece(ABC):
 
 class Pawn(Piece):
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
+        self, _cb: ChessBoard, _color: Literal["white", "black"], _pos: Pos
     ) -> None:
-        super().__init__(cb, color, "pawn", pos)
+        super().__init__(_cb, _color, "pawn", _pos)
 
     def move(self):
-        if self._alive is False:
-            return
 
-        available_moves = []
+        valid_moves = []
 
-        # normal_move
-        normal_move = self._pos + (self._dir, 0)
-
-        if normal_move.valid and self._cb.pieces[normal_move.tup] is None:
-            available_moves.append(normal_move)
-
-        capture_moves = [
-            self._pos + (self._dir, -1),
-            self._pos + (self._dir, 1),
+        possible_moves: list[tuple[Pos, Literal["move", "capture", "pawn_start"]]] = [
+            (self._pos + (self._dir, 0), "move"),
+            (self._pos + (self._dir, -1), "capture"),
+            (self._pos + (self._dir, 1), "capture"),
+            (self._pos + (self._dir * 2, 0), "pawn_start")
         ]
 
-        capture_moves = [move for move in capture_moves if move.valid]
+        for pos, type in possible_moves:
+            if pos.valid is False:
+                continue
 
-        for move in capture_moves:
-            if (other := self._cb.pieces[move.tup]) and other._color != self._color:
-                available_moves.append(move)
+            other_piece = self._cb.pieces[pos.tup]
+            
+            match type:
+                case "move":
+                    if other_piece is None:
+                        valid_moves.append(pos)
+                
+                case "capture":
+                    if other_piece and other_piece._color != self._color:
+                        valid_moves.append(pos)
+                
+                case "pawn_start":
+                    if ((self._pos.row == 6 and self._color == "white") or (self._pos.row == 1 and self._color == "black")) and other_piece is None and self._cb.pieces[(self._pos + (self._dir, 0)).tup] is None:
+                        valid_moves.append(pos)
 
-        if available_moves:
-            self.pos = random.choice(available_moves)
+
+        if valid_moves:
+            self.pos = random.choice(valid_moves)
 
 
 class Bishop(Piece):
