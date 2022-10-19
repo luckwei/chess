@@ -2,6 +2,7 @@ import random
 from abc import ABC, abstractmethod
 from tabnanny import check
 from tkinter import Event, Label
+from typing import Literal
 
 from tksvg import SvgImage
 
@@ -14,7 +15,7 @@ class Piece(ABC):
     """Abstract base class for all following pieces for movement"""
 
     def __init__(
-        self, cb: ChessBoard, color: bool, piece: str, pos: tuple[int, int]
+        self, cb: ChessBoard, color: Literal[True, False], piece: Literal["pawn", "knight", "bishop", "rook", "king", "queen"], pos: tuple[int, int]
     ) -> None:
         self._alive = True
 
@@ -76,12 +77,12 @@ class Piece(ABC):
         self._label.place(height=TILE_SIZE, width=TILE_SIZE)
 
     def click_handler(self, event: Event) -> None:
-        print(event)
+        """Handles logic when clicked"""
         self.move()
-
-
+        print(event)
 
     def kill(self) -> None:
+        """Kills this piece, removes label and piece from chessboard"""
         self._cb.pieces[self._pos] = None
         self._label.destroy()
         self._alive = False
