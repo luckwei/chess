@@ -17,9 +17,6 @@ class Tile(tk.Frame):
         super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=THEME[sum(pos) % 2])
         self.grid(row=pos[0], column=pos[1])
 
-        # Tiles are empty until a Piece is attached
-        self.piece: chess.Piece | None = None
-
 
 class ChessBoard(tk.Frame):
     """Chessboard with Root as Master"""
@@ -31,24 +28,23 @@ class ChessBoard(tk.Frame):
 
         # Initialise 8 x 8 tiles with alternating colors
         self.tiles = {pos: Tile(self, pos) for pos in product(range(8), range(8))}
+        self.pieces: dict[tuple[int, int], chess.Piece | None] = {
+            pos: None for pos in product(range(8), range(8))
+        }
 
         # Initialise starting position
         self.reset()
-        
 
     def clear(self) -> None:
         """Clears pieces from chessboard"""
-        for tile in self.tiles.values():
-            if tile.piece:
-                tile.piece.remove(kill=True)
+        [piece.kill() for piece in self.pieces.values() if piece]
 
     def reset(self) -> None:
         """Clears pieces and sets starting position"""
         self.clear()
         for row, color, pieces in chess.SETUP:
             for col, Piece in enumerate(pieces):
-                self.tiles[(row, col)].piece = Piece(self, color, (row, col))
-
+                self.pieces[(row, col)] = Piece(self, color, (row, col))
 
 
 def main() -> None:

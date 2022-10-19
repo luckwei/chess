@@ -1,12 +1,13 @@
 import random
 from abc import ABC, abstractmethod
-from tkinter import Label, Event
+from tabnanny import check
+from tkinter import Event, Label
 
 from tksvg import SvgImage
 
 from .board import ChessBoard
 from .constants import PIECE_SIZE, THEME, TILE_SIZE
-from .helper import pos_inc
+from .helper import pos_inc, check_grid
 
 
 class Piece(ABC):
@@ -16,31 +17,23 @@ class Piece(ABC):
         self, cb: ChessBoard, color: bool, piece: str, pos: tuple[int, int]
     ) -> None:
         self._alive = True
-        
+
+        cb.pieces[pos] = self
         # Link chessboard to piece
         self._cb = cb
-        self._tile = cb.tiles[pos]
         self._color = color
         self._dir = -1 if color else +1
         self._pos = pos
-
+        
         # Create image for the piece
         self._img = SvgImage(
             file=f"res/svg/{piece}_{'white' if color else 'black'}.svg",
             scaletowidth=PIECE_SIZE,
         )
-        
-        self._label: Label
 
-        self.create_label()
+        self.refresh_label()
 
-        self._cb.master.bind(
-            "<KeyPress>",
-            self.keypress_handler,
-            add=True,
-        )
-    
-        
+
     @property
     def pos(self) -> tuple[int, int]:
         return self._pos
@@ -49,53 +42,53 @@ class Piece(ABC):
     @pos.setter
     def pos(self, new_pos: tuple[int, int]) -> None:
         """Setting a new position is akin to moving, logic is carried over to the tile object"""
-        
-        assert max(new_pos) <= 7  and min(new_pos) >= 0, "values of position can only be from 0-7"
-        old_tile = self._tile
-        new_tile = self._cb.tiles[new_pos]
-        
-        # Remove piece
-        self.remove()
-        
-        # Kill other piece if exists
-        if new_tile.piece:
-            new_tile.piece.remove(kill=True)
-        
-        # Update info of new position (tile/piece)
-        self._tile = new_tile
-        self._tile.piece = self
-        self._pos = new_pos
-        self.create_label()
 
-    def create_label(self):
+        assert (
+            max(new_pos) <= 7 and min(new_pos) >= 0
+        ), "values of position can only be from 0-7"
+        
+        # Remove piece from old position
+        self._cb.pieces[self._pos] = None
+        
+        # Kill existing piece on new position if exists
+        if (other_piece:=self._cb.pieces[new_pos]):
+            other_piece.kill()
+        
+        # Put piece in new position
+        self._cb.pieces[new_pos] = self
+        
+        # Update position value and refresh image
+        self._pos = new_pos
+        self.refresh_label()
+
+
+    def refresh_label(self) -> None:
         """Display piece"""
-        self.label = Label(
-            self._tile,
+        if hasattr(self, '_label'):
+            self._label.destroy()
+            
+        self._label = Label(
+            self._cb.tiles[self._pos],
             image=self._img,
             bg=THEME[sum(self._pos) % 2],
         )
-        self.label.bind("<Button-1>", self.click_handler, add=True)
-        self.label.place(height=TILE_SIZE, width=TILE_SIZE)
+        self._label.bind("<Button-1>", self.click_handler, add=True)
+        self._label.place(height=TILE_SIZE, width=TILE_SIZE)
 
     def click_handler(self, event: Event) -> None:
         print(event)
         self.move()
-        
-    def remove(self, kill=False):
-        """Remove display or kill piece entirely"""
-        self._tile.piece = None
-        self.label.destroy()
-        if kill:
-            self._alive = False
+
+
+
+    def kill(self) -> None:
+        self._cb.pieces[self._pos] = None
+        self._label.destroy()
+        self._alive = False
 
     @abstractmethod
-    def move(self):
+    def move(self) -> None:
         """If piece is alive, move it depending on piece"""
-        
-    def keypress_handler(self, event):
-        if event.char == "t":
-            self.move()
-
 
 class Pawn(Piece):
     def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
@@ -104,33 +97,41 @@ class Pawn(Piece):
     def move(self):
         if self._alive is False:
             return
-        
-        try:
-            available_moves = []
-            # normal_move
-            normal_move = pos_inc(self._pos, self._dir, 0)
-            if self._cb.tiles[normal_move].piece is None:
-                available_moves.append(normal_move)
-                
-            
-            capture_moves = [pos_inc(self._pos, self._dir, -1), pos_inc(self._pos, self._dir, 1)]
-            
-            capture_moves = [move for move in capture_moves if min(move) >= 0 and max(move) <= 7]
-            
-            for move in capture_moves:
-                if (other := self._cb.tiles[move].piece) and other._color != self._color:
-                    available_moves.append(move)
 
-            if available_moves:
-                self.pos = random.choice(available_moves)
-        except KeyError:
-            return
+
+        available_moves = []
+        
+        # normal_move
+        normal_move = pos_inc(self._pos, (self._dir, 0))
+        
+        
+        
+        if check_grid(normal_move) and self._cb.pieces[normal_move] is None:
+            available_moves.append(normal_move)
+
+        capture_moves = [
+            pos_inc(self._pos, (self._dir, -1)),
+            pos_inc(self._pos, (self._dir, 1)),
+        ]
+
+        capture_moves = [
+            move for move in capture_moves if check_grid(move)
+        ]
+
+        for move in capture_moves:
+            if (
+                other := self._cb.pieces[move]
+            ) and other._color != self._color:
+                available_moves.append(move)
+
+        if available_moves:
+            self.pos = random.choice(available_moves)
+
 
 
 class Bishop(Piece):
     def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
         super().__init__(cb, color, "bishop", pos)
-
 
     def move(self):
         ...
@@ -138,8 +139,6 @@ class Bishop(Piece):
         #     return
         # row, col = self.pos
         # self.pos = (row + (-1 if self.color else 1), col + 1)
-
-    
 
 
 class Knight(Piece):
