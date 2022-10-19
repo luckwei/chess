@@ -32,7 +32,7 @@ class Piece(ABC):
         
         self._label: Label
 
-        self.show()
+        self.create_label()
 
         self._cb.master.bind(
             "<KeyPress>",
@@ -49,20 +49,25 @@ class Piece(ABC):
     @pos.setter
     def pos(self, new_pos: tuple[int, int]) -> None:
         """Setting a new position is akin to moving, logic is carried over to the tile object"""
-        # Kill other piece
+        
+        assert max(new_pos) <= 7  and min(new_pos) >= 0, "values of position can only be from 0-7"
+        old_tile = self._tile
         new_tile = self._cb.tiles[new_pos]
+        
+        # Remove piece
+        self.remove()
+        
+        # Kill other piece if exists
         if new_tile.piece:
             new_tile.piece.remove(kill=True)
-        # Remove this piece from previous position
         
-        # Transfer piece to new position
-        self.remove()
+        # Update info of new position (tile/piece)
         self._tile = new_tile
         self._tile.piece = self
         self._pos = new_pos
-        self.show()
+        self.create_label()
 
-    def show(self):
+    def create_label(self):
         """Display piece"""
         self.label = Label(
             self._tile,
