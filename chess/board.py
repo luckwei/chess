@@ -17,26 +17,8 @@ class Tile(tk.Frame):
         super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=THEME[sum(pos) % 2])
         self.grid(row=pos[0], column=pos[1])
 
-        self.pos = pos
         # Tiles are empty until a Piece is attached
-        self._piece: chess.Piece | None = None
-
-    @property
-    def piece(self) -> chess.Piece | None:
-        return self._piece
-
-    @piece.setter
-    def piece(self, new_piece: chess.Piece) -> None:
-
-        # If a piece already exists on new spot, remove display and kill it
-        if self._piece:
-            self._piece.remove(kill=True)
-
-        # Remove from old spot and show in new_spot
-        new_piece.remove()
-        new_piece.show(self.pos)
-
-        self._piece = new_piece
+        self.piece: chess.Piece | None = None
 
 
 class ChessBoard(tk.Frame):
@@ -52,16 +34,13 @@ class ChessBoard(tk.Frame):
 
         # Initialise starting position
         self.reset()
-
-        # Bind event logic
-        self.master.bind("<KeyPress>", self.keypress_handler, add=True)
+        
 
     def clear(self) -> None:
         """Clears pieces from chessboard"""
         for tile in self.tiles.values():
             if tile.piece:
-                tile.piece.remove()
-                tile.piece.alive = False
+                tile.piece.remove(kill=True)
 
     def reset(self) -> None:
         """Clears pieces and sets starting position"""
@@ -70,12 +49,6 @@ class ChessBoard(tk.Frame):
             for col, Piece in enumerate(pieces):
                 self.tiles[(row, col)].piece = Piece(self, color, (row, col))
 
-    def keypress_handler(self, event) -> None:
-        """Handles keypress events"""
-        if event.char == "q":
-            self.clear()
-        elif event.char == "w":
-            self.reset()
 
 
 def main() -> None:

@@ -1,6 +1,6 @@
 from chess import ChessBoard, Root
 
 root = Root()
-cb = ChessBoard(root)
+# cb = ChessBoard(root)
 
 root.mainloop()
