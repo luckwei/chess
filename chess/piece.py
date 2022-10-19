@@ -8,7 +8,7 @@ from tksvg import SvgImage
 
 from .board import ChessBoard
 from .constants import PIECE_SIZE, THEME, TILE_SIZE
-from .helper import Inc, check_grid
+from .helper import Pos
 
 
 @dataclass
@@ -19,16 +19,18 @@ class Piece(ABC):
     _color: Literal["white", "black"]
     piece: InitVar[Literal["pawn", "knight", "bishop", "rook", "king", "queen"]]
 
-    _pos: tuple[int, int]
+    _pos: Pos
 
     _alive: bool = field(init=False, default=True)
 
     _img: SvgImage = field(init=False, repr=False)
     _dir: Literal[-1, 1] = field(init=False, repr=False)
 
-    def __post_init__(self, piece) -> None:
+    def __post_init__(
+        self, piece: Literal["pawn", "knight", "bishop", "rook", "king", "queen"]
+    ) -> None:
         self._dir = -1 if self._color == "white" else 1
-        self._cb.pieces[self._pos] = self
+        self._cb.pieces[self._pos.tup] = self
 
         # Create image for the piece
         self._img = SvgImage(
@@ -39,41 +41,39 @@ class Piece(ABC):
         self.refresh_label()
 
     @property
-    def pos(self) -> tuple[int, int]:
+    def pos(self) -> Pos:
         return self._pos
 
     # When moving the piece
     @pos.setter
-    def pos(self, new_pos: tuple[int, int]) -> None:
+    def pos(self, new_pos: Pos) -> None:
         """Setting a new position is akin to moving, logic is carried over to the tile object"""
 
-        assert (
-            max(new_pos) <= 7 and min(new_pos) >= 0
-        ), "values of position can only be from 0-7"
+        assert new_pos.valid, "values of position can only be from 0-7"
 
         # Remove piece from old position
-        self._cb.pieces[self._pos] = None
+        self._cb.pieces[self._pos.tup] = None
 
         # Kill existing piece on new position if exists
-        if other_piece := self._cb.pieces[new_pos]:
+        if other_piece := self._cb.pieces[new_pos.tup]:
             other_piece.kill()
 
         # Put piece in new position
-        self._cb.pieces[new_pos] = self
+        self._cb.pieces[new_pos.tup] = self
 
         # Update position value and refresh image
         self._pos = new_pos
         self.refresh_label()
 
     def refresh_label(self) -> None:
-        """Display piece"""
+        """Remove old label and create new one"""
         if hasattr(self, "_label"):
             self._label.destroy()
 
         self._label = Label(
-            self._cb.tiles[self._pos],
+            self._cb.tiles[self._pos.tup],
             image=self._img,
-            bg=THEME[sum(self._pos) % 2],
+            bg=THEME[sum(self._pos.tup) % 2],
         )
         self._label.bind("<Button-1>", self.click_handler, add=True)
         self._label.place(height=TILE_SIZE, width=TILE_SIZE)
@@ -85,7 +85,7 @@ class Piece(ABC):
 
     def kill(self) -> None:
         """Kills this piece, removes label and piece from chessboard"""
-        self._cb.pieces[self._pos] = None
+        self._cb.pieces[self._pos.tup] = None
         self._label.destroy()
         self._alive = False
 
@@ -96,7 +96,7 @@ class Piece(ABC):
 
 class Pawn(Piece):
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]
+        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
     ) -> None:
         super().__init__(cb, color, "pawn", pos)
 
@@ -107,20 +107,20 @@ class Pawn(Piece):
         available_moves = []
 
         # normal_move
-        normal_move = self._pos + Inc(self._dir, 0)
+        normal_move = self._pos + (self._dir, 0)
 
-        if check_grid(normal_move) and self._cb.pieces[normal_move] is None:
+        if normal_move.valid and self._cb.pieces[normal_move.tup] is None:
             available_moves.append(normal_move)
 
         capture_moves = [
-            self._pos + Inc(self._dir, -1),
-            self._pos + Inc(self._dir, 1),
+            self._pos + (self._dir, -1),
+            self._pos + (self._dir, 1),
         ]
 
-        capture_moves = [move for move in capture_moves if check_grid(move)]
+        capture_moves = [move for move in capture_moves if move.valid]
 
         for move in capture_moves:
-            if (other := self._cb.pieces[move]) and other._color != self._color:
+            if (other := self._cb.pieces[move.tup]) and other._color != self._color:
                 available_moves.append(move)
 
         if available_moves:
@@ -129,21 +129,17 @@ class Pawn(Piece):
 
 class Bishop(Piece):
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]
+        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
     ) -> None:
         super().__init__(cb, color, "bishop", pos)
 
     def move(self):
         ...
-        # if self.alive is False:
-        #     return
-        # row, col = self.pos
-        # self.pos = (row + (-1 if self.color else 1), col + 1)
 
 
 class Knight(Piece):
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]
+        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
     ) -> None:
         super().__init__(cb, color, "knight", pos)
 
@@ -153,7 +149,7 @@ class Knight(Piece):
 
 class Rook(Piece):
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]
+        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
     ) -> None:
         super().__init__(cb, color, "rook", pos)
 
@@ -163,7 +159,7 @@ class Rook(Piece):
 
 class Queen(Piece):
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]
+        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
     ) -> None:
         super().__init__(cb, color, "queen", pos)
 
@@ -173,7 +169,7 @@ class Queen(Piece):
 
 class King(Piece):
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]
+        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
     ) -> None:
         super().__init__(cb, color, "king", pos)
 

@@ -7,6 +7,7 @@ import chess
 
 from .constants import THEME, TILE_SIZE
 from .GUI import Root
+from .helper import Pos
 
 
 class Tile(tk.Frame):
@@ -44,7 +45,7 @@ class ChessBoard(tk.Frame):
         self.clear()
         for row, color, pieces in chess.SETUP:
             for col, Piece in enumerate(pieces):
-                self.pieces[(row, col)] = Piece(self, color, (row, col))
+                self.pieces[(row, col)] = Piece(self, color, Pos(row, col))
 
 
 def main() -> None:
