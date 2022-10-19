@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field, InitVar
 import random
 from abc import ABC, abstractmethod
 from tabnanny import check
@@ -10,25 +11,30 @@ from .board import ChessBoard
 from .constants import PIECE_SIZE, THEME, TILE_SIZE
 from .helper import pos_inc, check_grid
 
-
+@dataclass
 class Piece(ABC):
     """Abstract base class for all following pieces for movement"""
+    _cb: ChessBoard = field(repr=False)
+    _color: Literal["white", "black"]
+    piece: InitVar[Literal["pawn", "knight", "bishop", "rook", "king", "queen"]]
+    
+    _pos: tuple[int, int]
+    
+    _alive: bool = field(init=False, default=True)
+    
+    _img: SvgImage = field(init=False, repr=False)
+    _dir: Literal[-1, 1] = field(init=False, repr=False)
 
-    def __init__(
-        self, cb: ChessBoard, color: Literal[True, False], piece: Literal["pawn", "knight", "bishop", "rook", "king", "queen"], pos: tuple[int, int]
+
+    def __post_init__(
+        self, piece
     ) -> None:
-        self._alive = True
-
-        cb.pieces[pos] = self
-        # Link chessboard to piece
-        self._cb = cb
-        self._color = color
-        self._dir = -1 if color else +1
-        self._pos = pos
+        self._dir = -1 if self._color == "white" else 1
+        self._cb.pieces[self._pos] = self
         
         # Create image for the piece
         self._img = SvgImage(
-            file=f"res/svg/{piece}_{'white' if color else 'black'}.svg",
+            file=f"res/svg/{piece}_{self._color}.svg",
             scaletowidth=PIECE_SIZE,
         )
 
@@ -92,7 +98,7 @@ class Piece(ABC):
         """If piece is alive, move it depending on piece"""
 
 class Pawn(Piece):
-    def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
+    def __init__(self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]) -> None:
         super().__init__(cb, color, "pawn", pos)
 
     def move(self):
@@ -131,7 +137,7 @@ class Pawn(Piece):
 
 
 class Bishop(Piece):
-    def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
+    def __init__(self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]) -> None:
         super().__init__(cb, color, "bishop", pos)
 
     def move(self):
@@ -143,7 +149,7 @@ class Bishop(Piece):
 
 
 class Knight(Piece):
-    def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
+    def __init__(self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]) -> None:
         super().__init__(cb, color, "knight", pos)
 
     def move(self):
@@ -151,7 +157,7 @@ class Knight(Piece):
 
 
 class Rook(Piece):
-    def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
+    def __init__(self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]) -> None:
         super().__init__(cb, color, "rook", pos)
 
     def move(self):
@@ -159,7 +165,7 @@ class Rook(Piece):
 
 
 class Queen(Piece):
-    def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
+    def __init__(self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]) -> None:
         super().__init__(cb, color, "queen", pos)
 
     def move(self):
@@ -167,7 +173,7 @@ class Queen(Piece):
 
 
 class King(Piece):
-    def __init__(self, cb: ChessBoard, color: bool, pos: tuple[int, int]) -> None:
+    def __init__(self, cb: ChessBoard, color: Literal["white", "black"], pos: tuple[int, int]) -> None:
         super().__init__(cb, color, "king", pos)
 
     def move(self):
