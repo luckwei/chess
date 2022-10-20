@@ -35,10 +35,11 @@ class ChessBoard(tk.Frame):
 
         # Initialise starting position
         self.reset()
+        self.master.bind("<KeyPress>", self.keypress_handler, add =True)
 
     def clear(self) -> None:
         """Clears pieces from chessboard"""
-        [piece.kill() for piece in self.pieces.values() if piece]
+        [piece.captured() for piece in self.pieces.values() if piece]
 
     def reset(self) -> None:
         """Clears pieces and sets starting position"""
@@ -46,6 +47,12 @@ class ChessBoard(tk.Frame):
         for row, color, pieces in chess.SETUP:
             for col, Piece in enumerate(pieces):
                 self.pieces[(row, col)] = Piece(self, color, Pos(row, col))
+    
+    def keypress_handler(self, event):
+        if event.char == 'f':
+            import numpy as np
+            a = np.array([1 if piece else 0 for piece in self.pieces.values()])
+            print(a.reshape((8,8)))
 
 
 def main() -> None:
