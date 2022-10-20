@@ -112,19 +112,16 @@ class Pawn(Piece):
 
         possible_moves: list[
             tuple[Pos, Literal["move", "capture", "pawn_start", "empassant"]]
-        ] = [
+        ] = list(filter(lambda move: move[0].valid, [
             (self._pos + (self._dir, 0), "move"),
             (self._pos + (self._dir, -1), "capture"),
             (self._pos + (self._dir, 1), "capture"),
             (self._pos + (self._dir * 2, 0), "pawn_start"),
             (self._pos + (self._dir, -1), "empassant"),
             (self._pos + (self._dir, 1), "empassant"),
-        ]
+        ]))
 
         for pos, type in possible_moves:
-            if pos.valid is False:
-                continue
-
             other_piece = self._cb.pieces[pos.tup]
 
             match type:
@@ -167,7 +164,7 @@ class Pawn(Piece):
                 self.empassat(choice[0])
             else:
                 self.pos = choice[0]
-
+    #TODO: Bring logic to pos setter in Pawn
     def empassat(self, pos: Pos) -> None:
         if other_pawn := self._cb.pieces[(pos - (self._dir, 0)).tup]:
             self.pos = pos
@@ -186,7 +183,22 @@ class Bishop(Piece):
         super().__init__(cb, color, "bishop", pos)
 
     def move(self):
-        ...
+        possible_moves: list[Pos] = [self._pos+Pos(1,1)*n for n in range(-7,7)] + [self._pos + Pos(-1,1)*n for n in range(-7, 7)]
+        
+        possible_moves = [move for move in possible_moves if move.valid]
+        print(possible_moves)
+        
+        valid_moves = []
+        for pos in possible_moves:
+            #TODO: implement pieces object for better slicing with pos
+            if self._cb.pieces[pos.tup] is None or self._cb.pieces[pos.tup]._color != self._color:
+                valid_moves.append(pos)
+        #TODO:No hop overs
+        if valid_moves:
+            self.pos = random.choice(valid_moves)
+                
+        
+        
 
 
 class Knight(Piece):
