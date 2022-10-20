@@ -87,12 +87,11 @@ class Piece(ABC):
         self._cb.pieces[self._pos.tup] = None
         self._label.destroy()
         self._alive = False
-        
+
     def capture_if_exists(self, pos: Pos) -> None:
         """Kills another piece if exists"""
-        if other_piece:=self._cb.pieces[pos.tup]:
+        if other_piece := self._cb.pieces[pos.tup]:
             other_piece.captured()
-        
 
     @abstractmethod
     def move(self) -> None:
@@ -109,7 +108,7 @@ class Pawn(Piece):
 
     def move(self) -> None:
 
-        valid_moves = []
+        valid_moves: list[tuple[Pos, bool]] = []
 
         possible_moves: list[
             tuple[Pos, Literal["move", "capture", "pawn_start", "empassant"]]
@@ -127,15 +126,15 @@ class Pawn(Piece):
                 continue
 
             other_piece = self._cb.pieces[pos.tup]
-            
+
             match type:
                 case "move":
                     if other_piece is None:
-                        valid_moves.append(pos)
+                        valid_moves.append((pos, False))
 
                 case "capture":
                     if other_piece and other_piece._color != self._color:
-                        valid_moves.append(pos)
+                        valid_moves.append((pos, False))
 
                 case "pawn_start":
                     if (
@@ -146,24 +145,33 @@ class Pawn(Piece):
                         and other_piece is None
                         and self._cb.pieces[(self._pos + (self._dir, 0)).tup] is None
                     ):
-                        valid_moves.append(pos)
+                        valid_moves.append((pos, False))
 
                 # code logic, TODO: CODE LOGIC FOR CAPTURE
                 case "empassant":
-                    enemy_pawn = (self._pos.row, pos.col)
+                    enemy_pawn = Pos(self._pos.row, pos.col)
                     if (
                         other_piece is None
                         and (
                             (self._pos.row == 3 and self._color == "white")
                             or (self._pos.row == 4 and self._color == "black")
                         )
-                        and isinstance(self._cb.pieces[enemy_pawn], Pawn)
-                        and "last move was pawn double push"
+                        and isinstance(self._cb.pieces[enemy_pawn.tup], Pawn)
+                        and "last move was pawn double push" "save the move in cb"
                     ):
-                        valid_moves.append(pos)
+                        valid_moves.append((pos, True))
 
         if valid_moves:
-            self.pos = random.choice(valid_moves)
+            choice = random.choice(valid_moves)
+            if choice[1]:
+                self.empassat(choice[0])
+            else:
+                self.pos = choice[0]
+
+    def empassat(self, pos: Pos) -> None:
+        if other_pawn := self._cb.pieces[(pos - (self._dir, 0)).tup]:
+            self.pos = pos
+            other_pawn.captured()
 
     def promote(self):
         ...
