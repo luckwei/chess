@@ -1,7 +1,7 @@
 import tkinter as tk
 
 import chess
-
+from .board import Board
 from .constants import THEME
 
 
@@ -9,18 +9,16 @@ class Root(tk.Tk):
     def __init__(
         self,
         theme: tuple[str, str] = THEME.RED,
-        title="CHESS",
-        icon="res/chess.ico",
         **kwargs
     ):
         super().__init__(**kwargs)
-        self._theme = theme
-        self.title(title)
-        self.iconbitmap(icon)
+        self.theme = theme
+        self.title("CHESS")
+        self.iconbitmap("res/chess.ico")
 
         # Bind event logic
         self.bind("<KeyPress>", self.keypress_handler, add=True)
-        self._cb = chess.ChessBoard(self, theme)
+        self.board = Board(theme)
 
     def keypress_handler(self, event):
         print(event)
@@ -31,5 +29,4 @@ class Root(tk.Tk):
                 self.reset()
 
     def reset(self):
-        self._cb.destroy()
-        self._cb = chess.ChessBoard(self, self._theme)
+        self.board = Board(self.theme)

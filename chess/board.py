@@ -8,7 +8,7 @@ from typing import Callable
 import chess
 
 from .constants import TILE_SIZE
-from .GUI import Root
+from .root import Root
 from .helper import Pos
 from .move import Position, get_valid_moves_rook
 from .piece import Piece, PieceColor, PieceType
@@ -23,7 +23,8 @@ def empty_board() -> Grid:
 
 @dataclass
 class Board:
-    pieces: Grid = field(default_factory=empty_board)
+    theme: tuple[str, str]
+    pieces: Grid = field(init=False, default_factory=empty_board)
 
     def place(self, piece: Piece):
         self.pieces[piece.pos] = piece
@@ -35,7 +36,7 @@ class Board:
         return not bool(self.piece(row, col))
     
     def find_king(self, color: PieceColor) -> Piece:
-        return [piece for piece in self.pieces.values() if piece.type == PieceType.KING and piece.color == PieceColor.BLACK][0]
+        return [piece for piece in self.pieces.values() if piece.type == PieceType.KING and piece.color == color][0]
     
     def get_valid_moves(self, row:int, col:int) -> list[Position]:
         return MOVE_LIST[self.piece(row, col).type](self, row, col)

@@ -55,7 +55,7 @@ class Piece:
     def image(self) -> str|None:
         if self.type == PieceType.EMPTY:
             return None
-        return f"res/svg/{self.type.value}_{COLOR_STR[self.color]}.svg"
+        return f"res/{self.type.value}_{COLOR_STR[self.color]}.svg"
     
     @property
     def pos(self) -> Position:
