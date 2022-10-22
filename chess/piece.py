@@ -72,7 +72,7 @@ class Piece(ABC):
         self._label = Label(
             self._cb.tiles[self._pos.tup],
             image=self._img,
-            bg=THEME[sum(self._pos.tup) % 2],
+            bg=THEME.RED[sum(self._pos.tup) % 2],
         )
         self._label.bind("<Button-1>", self.click_handler, add=True)
         self._label.place(height=TILE_SIZE, width=TILE_SIZE)

@@ -15,7 +15,7 @@ class Tile(tk.Frame):
 
     def __init__(self, cb: ChessBoard, pos: tuple[int, int]) -> None:
         # Create a tile in chessboard's grid
-        super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=THEME[sum(pos) % 2])
+        super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=THEME.RED[sum(pos) % 2])
         self.grid(row=pos[0], column=pos[1])
 
 
