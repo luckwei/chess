@@ -18,8 +18,9 @@ class Piece(ABC):
     _cb: ChessBoard = field(repr=False)
     _color: Literal[Color.BLACK, Color.WHITE]
     piece: InitVar[Literal["pawn", "knight", "bishop", "rook", "king", "queen"]]
-
+    
     _pos: Pos
+    _theme: tuple[str, str]
 
     _alive: bool = field(init=False, default=True)
 
@@ -72,7 +73,7 @@ class Piece(ABC):
         self._label = Label(
             self._cb.tiles[self._pos.tup],
             image=self._img,
-            bg=THEME.RED[sum(self._pos.tup) % 2],
+            bg=self._theme[sum(self._pos.tup) % 2],
         )
         self._label.bind("<Button-1>", self.click_handler, add=True)
         self._label.place(height=TILE_SIZE, width=TILE_SIZE)
@@ -102,9 +103,9 @@ class Pawn(Piece):
     """Pawn with ability to promote"""
 
     def __init__(
-        self, _cb: ChessBoard, _color: Literal[Color.WHITE, Color.BLACK], _pos: Pos
+        self, _cb: ChessBoard, _color: Literal[Color.WHITE, Color.BLACK], _pos: Pos, _theme: tuple[str, str]
     ) -> None:
-        super().__init__(_cb, _color, "pawn", _pos)
+        super().__init__(_cb, _color, "pawn", _pos, _theme)
 
     def move(self) -> None:
 
@@ -178,9 +179,9 @@ class Bishop(Piece):
     """Bishop moves diagonally"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
     ) -> None:
-        super().__init__(cb, color, "bishop", pos)
+        super().__init__(cb, color, "bishop", pos, _theme)
 
     def move(self):
         possible_moves: list[Pos] = [self._pos+Pos(1,1)*n for n in range(-7,7)] + [self._pos + Pos(-1,1)*n for n in range(-7, 7)]
@@ -207,9 +208,9 @@ class Knight(Piece):
     """Knight moves in L shapes, able to jump over pieces"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
     ) -> None:
-        super().__init__(cb, color, "knight", pos)
+        super().__init__(cb, color, "knight", pos, _theme)
 
     def move(self):
         ...
@@ -219,9 +220,9 @@ class Rook(Piece):
     """Rook moves in straight lines"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
     ) -> None:
-        super().__init__(cb, color, "rook", pos)
+        super().__init__(cb, color, "rook", pos, _theme)
 
     def move(self):
         ...
@@ -231,9 +232,9 @@ class Queen(Piece):
     """Moves perpendicularly and diagonally"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
     ) -> None:
-        super().__init__(cb, color, "queen", pos)
+        super().__init__(cb, color, "queen", pos, _theme)
 
     def move(self):
         ...
@@ -243,9 +244,9 @@ class King(Piece):
     """Moves into surrounding tiles, objective is to be checkmated"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
     ) -> None:
-        super().__init__(cb, color, "king", pos)
+        super().__init__(cb, color, "king", pos, _theme)
 
     def move(self):
         ...

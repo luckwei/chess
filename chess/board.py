@@ -26,6 +26,8 @@ class ChessBoard(tk.Frame):
         # Initialise chessboard frame and display it
         super().__init__(master, width=8 * TILE_SIZE, height=8 * TILE_SIZE)
         self.pack()
+        
+        self._theme = theme
 
         # Initialise 8 x 8 tiles with alternating colors
         self.tiles = {pos: Tile(self, pos, theme) for pos in product(range(8), range(8))}
@@ -46,7 +48,7 @@ class ChessBoard(tk.Frame):
         self.clear()
         for row, color, pieces in chess.SETUP:
             for col, Piece in enumerate(pieces):
-                self.pieces[(row, col)] = Piece(self, color, Pos(row, col))
+                self.pieces[(row, col)] = Piece(self, color, Pos(row, col), self._theme)
     
     def keypress_handler(self, event):
         if event.char == 'f':
