@@ -7,7 +7,7 @@ from typing import Literal
 from tksvg import SvgImage
 
 from .board import ChessBoard
-from .constants import PIECE_SIZE, THEME, TILE_SIZE
+from .constants import PIECE_SIZE, THEME, TILE_SIZE, Color
 from .helper import Pos
 
 
@@ -16,7 +16,7 @@ class Piece(ABC):
     """Abstract base class for all following pieces for movement"""
 
     _cb: ChessBoard = field(repr=False)
-    _color: Literal["white", "black"]
+    _color: Literal[Color.BLACK, Color.WHITE]
     piece: InitVar[Literal["pawn", "knight", "bishop", "rook", "king", "queen"]]
 
     _pos: Pos
@@ -29,12 +29,12 @@ class Piece(ABC):
     def __post_init__(
         self, piece: Literal["pawn", "knight", "bishop", "rook", "king", "queen"]
     ) -> None:
-        self._dir = -1 if self._color == "white" else 1
+        self._dir = -1 if self._color == Color.WHITE else 1
         self._cb.pieces[self._pos.tup] = self
 
         # Create image for the piece
         self._img = SvgImage(
-            file=f"res/svg/{piece}_{self._color}.svg",
+            file=f"res/svg/{piece}_{self._color.value}.svg",
             scaletowidth=PIECE_SIZE,
         )
 
@@ -102,7 +102,7 @@ class Pawn(Piece):
     """Pawn with ability to promote"""
 
     def __init__(
-        self, _cb: ChessBoard, _color: Literal["white", "black"], _pos: Pos
+        self, _cb: ChessBoard, _color: Literal[Color.WHITE, Color.BLACK], _pos: Pos
     ) -> None:
         super().__init__(_cb, _color, "pawn", _pos)
 
@@ -136,8 +136,8 @@ class Pawn(Piece):
                 case "pawn_start":
                     if (
                         (
-                            (self._pos.row == 6 and self._color == "white")
-                            or (self._pos.row == 1 and self._color == "black")
+                            (self._pos.row == 6 and self._color == Color.WHITE)
+                            or (self._pos.row == 1 and self._color == Color.BLACK)
                         )
                         and other_piece is None
                         and self._cb.pieces[(self._pos + (self._dir, 0)).tup] is None
@@ -150,8 +150,8 @@ class Pawn(Piece):
                     if (
                         other_piece is None
                         and (
-                            (self._pos.row == 3 and self._color == "white")
-                            or (self._pos.row == 4 and self._color == "black")
+                            (self._pos.row == 3 and self._color == Color.WHITE)
+                            or (self._pos.row == 4 and self._color == Color.BLACK)
                         )
                         and isinstance(self._cb.pieces[enemy_pawn.tup], Pawn)
                         and "last move was pawn double push" "save the move in cb"
@@ -178,7 +178,7 @@ class Bishop(Piece):
     """Bishop moves diagonally"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
     ) -> None:
         super().__init__(cb, color, "bishop", pos)
 
@@ -191,8 +191,10 @@ class Bishop(Piece):
         valid_moves = []
         for pos in possible_moves:
             #TODO: implement pieces object for better slicing with pos
-            if self._cb.pieces[pos.tup] is None or self._cb.pieces[pos.tup]._color != self._color:
+            if (other_piece:=self._cb.pieces[pos.tup]) is None or other_piece._color != self._color:
                 valid_moves.append(pos)
+                
+        #TODO: Time to make move class with from and to, with dynamic valid move getter, these checkers may be connected to chessboard and not moves and will help with legal/illegal move logic
         #TODO:No hop overs
         if valid_moves:
             self.pos = random.choice(valid_moves)
@@ -205,7 +207,7 @@ class Knight(Piece):
     """Knight moves in L shapes, able to jump over pieces"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
     ) -> None:
         super().__init__(cb, color, "knight", pos)
 
@@ -217,7 +219,7 @@ class Rook(Piece):
     """Rook moves in straight lines"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
     ) -> None:
         super().__init__(cb, color, "rook", pos)
 
@@ -229,7 +231,7 @@ class Queen(Piece):
     """Moves perpendicularly and diagonally"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
     ) -> None:
         super().__init__(cb, color, "queen", pos)
 
@@ -241,7 +243,7 @@ class King(Piece):
     """Moves into surrounding tiles, objective is to be checkmated"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal["white", "black"], pos: Pos
+        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos
     ) -> None:
         super().__init__(cb, color, "king", pos)
 
