@@ -12,3 +12,7 @@ class Color(Enum):
 
 class THEME:
     RED = ("#ffd1f6", "#9e0842")
+    BLUE = ("#98e2fa", "#2a7cf7")
+    
+    
+THEME.RED

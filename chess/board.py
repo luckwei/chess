@@ -13,22 +13,22 @@ from .helper import Pos
 class Tile(tk.Frame):
     """Tile of the Chessboard, able to house a chess Piece"""
 
-    def __init__(self, cb: ChessBoard, pos: tuple[int, int]) -> None:
+    def __init__(self, cb: ChessBoard, pos: tuple[int, int], theme: tuple[str, str]) -> None:
         # Create a tile in chessboard's grid
-        super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=THEME.RED[sum(pos) % 2])
+        super().__init__(cb, width=TILE_SIZE, height=TILE_SIZE, bg=theme[sum(pos) % 2])
         self.grid(row=pos[0], column=pos[1])
 
 
 class ChessBoard(tk.Frame):
     """Chessboard with Root as Master"""
 
-    def __init__(self, master: Root) -> None:
+    def __init__(self, master: Root, theme: tuple[str, str]) -> None:
         # Initialise chessboard frame and display it
         super().__init__(master, width=8 * TILE_SIZE, height=8 * TILE_SIZE)
         self.pack()
 
         # Initialise 8 x 8 tiles with alternating colors
-        self.tiles = {pos: Tile(self, pos) for pos in product(range(8), range(8))}
+        self.tiles = {pos: Tile(self, pos, theme) for pos in product(range(8), range(8))}
         self.pieces: dict[tuple[int, int], chess.Piece | None] = {
             pos: None for pos in product(range(8), range(8))
         }

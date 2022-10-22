@@ -1,6 +1,6 @@
-from chess import ChessBoard, Root
+from chess import ChessBoard, Root, THEME
 
-root = Root()
+root = Root(THEME.RED)
 # cb = ChessBoard(root)
 
 root.mainloop()
