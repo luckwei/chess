@@ -1,4 +1,4 @@
-from typing import Sequence, Literal
+from typing import Literal, Sequence
 
 from chess.constants import Color
 from chess.piece import Bishop, King, Knight, Pawn, Queen, Rook
@@ -8,7 +8,11 @@ FRONTLINE = [Pawn] * 8
 
 # An initial setup configuration
 SETUP: list[
-    tuple[int, Literal[Color.BLACK, Color.WHITE], Sequence[type[Rook | Knight | Bishop | Queen | King | Pawn]]]
+    tuple[
+        int,
+        Literal[Color.BLACK, Color.WHITE],
+        Sequence[type[Rook | Knight | Bishop | Queen | King | Pawn]],
+    ]
 ] = [
     (0, Color.BLACK, BACKLINE),
     (1, Color.BLACK, FRONTLINE),

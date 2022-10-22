@@ -25,9 +25,9 @@ class Pos:
 
     def __radd__(self, other: tuple[int, int] | Pos) -> Pos:
         return self.__add__(other)
-    
-    def __sub__(self, other: tuple[int, int] |Pos) -> Pos:
-        return Pos(self.row - other[0], self.col-other[1])
-    
+
+    def __sub__(self, other: tuple[int, int] | Pos) -> Pos:
+        return Pos(self.row - other[0], self.col - other[1])
+
     def __mul__(self, n: int):
-        return Pos(self.row*n, self.col*n)
+        return Pos(self.row * n, self.col * n)

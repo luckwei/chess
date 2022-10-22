@@ -18,7 +18,7 @@ class Piece(ABC):
     _cb: ChessBoard = field(repr=False)
     _color: Literal[Color.BLACK, Color.WHITE]
     piece: InitVar[Literal["pawn", "knight", "bishop", "rook", "king", "queen"]]
-    
+
     _pos: Pos
     _theme: tuple[str, str]
 
@@ -103,7 +103,11 @@ class Pawn(Piece):
     """Pawn with ability to promote"""
 
     def __init__(
-        self, _cb: ChessBoard, _color: Literal[Color.WHITE, Color.BLACK], _pos: Pos, _theme: tuple[str, str]
+        self,
+        _cb: ChessBoard,
+        _color: Literal[Color.WHITE, Color.BLACK],
+        _pos: Pos,
+        _theme: tuple[str, str],
     ) -> None:
         super().__init__(_cb, _color, "pawn", _pos, _theme)
 
@@ -113,14 +117,19 @@ class Pawn(Piece):
 
         possible_moves: list[
             tuple[Pos, Literal["move", "capture", "pawn_start", "empassant"]]
-        ] = list(filter(lambda move: move[0].valid, [
-            (self._pos + (self._dir, 0), "move"),
-            (self._pos + (self._dir, -1), "capture"),
-            (self._pos + (self._dir, 1), "capture"),
-            (self._pos + (self._dir * 2, 0), "pawn_start"),
-            (self._pos + (self._dir, -1), "empassant"),
-            (self._pos + (self._dir, 1), "empassant"),
-        ]))
+        ] = list(
+            filter(
+                lambda move: move[0].valid,
+                [
+                    (self._pos + (self._dir, 0), "move"),
+                    (self._pos + (self._dir, -1), "capture"),
+                    (self._pos + (self._dir, 1), "capture"),
+                    (self._pos + (self._dir * 2, 0), "pawn_start"),
+                    (self._pos + (self._dir, -1), "empassant"),
+                    (self._pos + (self._dir, 1), "empassant"),
+                ],
+            )
+        )
 
         for pos, type in possible_moves:
             other_piece = self._cb.pieces[pos.tup]
@@ -165,7 +174,8 @@ class Pawn(Piece):
                 self.empassat(choice[0])
             else:
                 self.pos = choice[0]
-    #TODO: Bring logic to pos setter in Pawn
+
+    # TODO: Bring logic to pos setter in Pawn
     def empassat(self, pos: Pos) -> None:
         if other_pawn := self._cb.pieces[(pos - (self._dir, 0)).tup]:
             self.pos = pos
@@ -179,36 +189,45 @@ class Bishop(Piece):
     """Bishop moves diagonally"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
+        self,
+        cb: ChessBoard,
+        color: Literal[Color.WHITE, Color.BLACK],
+        pos: Pos,
+        _theme: tuple[str, str],
     ) -> None:
         super().__init__(cb, color, "bishop", pos, _theme)
 
     def move(self):
-        possible_moves: list[Pos] = [self._pos+Pos(1,1)*n for n in range(-7,7)] + [self._pos + Pos(-1,1)*n for n in range(-7, 7)]
-        
+        possible_moves: list[Pos] = [
+            self._pos + Pos(1, 1) * n for n in range(-7, 7)
+        ] + [self._pos + Pos(-1, 1) * n for n in range(-7, 7)]
+
         possible_moves = [move for move in possible_moves if move.valid]
         print(possible_moves)
-        
+
         valid_moves = []
         for pos in possible_moves:
-            #TODO: implement pieces object for better slicing with pos
-            if (other_piece:=self._cb.pieces[pos.tup]) is None or other_piece._color != self._color:
+            # TODO: implement pieces object for better slicing with pos
+            if (
+                other_piece := self._cb.pieces[pos.tup]
+            ) is None or other_piece._color != self._color:
                 valid_moves.append(pos)
-                
-        #TODO: Time to make move class with from and to, with dynamic valid move getter, these checkers may be connected to chessboard and not moves and will help with legal/illegal move logic
-        #TODO:No hop overs
+
+        # TODO: Time to make move class with from and to, with dynamic valid move getter, these checkers may be connected to chessboard and not moves and will help with legal/illegal move logic
+        # TODO:No hop overs
         if valid_moves:
             self.pos = random.choice(valid_moves)
-                
-        
-        
 
 
 class Knight(Piece):
     """Knight moves in L shapes, able to jump over pieces"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
+        self,
+        cb: ChessBoard,
+        color: Literal[Color.WHITE, Color.BLACK],
+        pos: Pos,
+        _theme: tuple[str, str],
     ) -> None:
         super().__init__(cb, color, "knight", pos, _theme)
 
@@ -220,7 +239,11 @@ class Rook(Piece):
     """Rook moves in straight lines"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
+        self,
+        cb: ChessBoard,
+        color: Literal[Color.WHITE, Color.BLACK],
+        pos: Pos,
+        _theme: tuple[str, str],
     ) -> None:
         super().__init__(cb, color, "rook", pos, _theme)
 
@@ -232,7 +255,11 @@ class Queen(Piece):
     """Moves perpendicularly and diagonally"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
+        self,
+        cb: ChessBoard,
+        color: Literal[Color.WHITE, Color.BLACK],
+        pos: Pos,
+        _theme: tuple[str, str],
     ) -> None:
         super().__init__(cb, color, "queen", pos, _theme)
 
@@ -244,7 +271,11 @@ class King(Piece):
     """Moves into surrounding tiles, objective is to be checkmated"""
 
     def __init__(
-        self, cb: ChessBoard, color: Literal[Color.WHITE, Color.BLACK], pos: Pos, _theme: tuple[str, str]
+        self,
+        cb: ChessBoard,
+        color: Literal[Color.WHITE, Color.BLACK],
+        pos: Pos,
+        _theme: tuple[str, str],
     ) -> None:
         super().__init__(cb, color, "king", pos, _theme)
 

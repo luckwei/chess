@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum
 
 # Sizing of
 TILE_SIZE = 60
