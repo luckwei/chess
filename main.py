@@ -1,6 +1,9 @@
-from chess import ChessBoard, Root, THEME
+from chess import THEME, Root
 
-root = Root(THEME.BLUE)
-# cb = ChessBoard(root)
 
-root.mainloop()
+def main() -> None:
+    Root(THEME.RED).mainloop()
+
+
+if __name__ == "__main__":
+    main()
