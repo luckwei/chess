@@ -20,19 +20,17 @@ from .setup import Setup
 Grid = dict[Position, Piece]
 
 
+def empty_board() -> Grid:
+    return {pos: Piece(*pos) for pos in product(range(8), range(8))}
+
+
 @dataclass
 class Board:
     theme: tuple[str, str] = THEME.RED
-    pieces: Grid = field(init=False)
+    pieces: Grid = field(init=False, default_factory=empty_board)
 
     def __post_init__(self):
-        self.pieces = {
-            (row, col): Piece(row, col, theme=self.theme)
-            for row, col in product(range(8), range(8))
-        }
-
         self.update_from_fen()
-        # print(self)
 
     def update_from_fen(self, fen: str = Setup.START):
         config, to_move, *_ = fen.replace("/", "").split(" ")
@@ -44,17 +42,11 @@ class Board:
                 continue
             row, col = divmod(i, 8)
             self.place(
-                Piece(
-                    row,
-                    col,
-                    PieceColor(char.islower()),
-                    FEN_MAP[char.lower()],
-                    theme=self.theme,
-                )
+                Piece(row, col, PieceColor(char.islower()), FEN_MAP[char.lower()])
             )
 
     def show_as_frame(self, master):
-        [piece.place_frame(master) for piece in self.pieces.values()]
+        [piece.place_frame(master, self.theme) for piece in self.pieces.values()]
 
     def place(self, piece: Piece):
         self.pieces[piece.pos] = piece
