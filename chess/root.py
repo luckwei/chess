@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import tkinter as tk
+from tkinter import Tk, Event
 
 from .board import Board
-from .constants import THEME, TILE_SIZE
+from .constants import THEME
 
 
-class Root(tk.Tk):
-    def __init__(self, theme: tuple[str, str] = THEME.RED, **kwargs):
-        super().__init__(**kwargs)
+class Root(Tk):
+    def __init__(self, theme: tuple[str, str] = THEME.RED):
+        super().__init__()
         self.theme = theme
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
@@ -18,7 +18,7 @@ class Root(tk.Tk):
         self.reset_board()
         self.display_board()
 
-    def keypress_handler(self, event):
+    def keypress_handler(self, event: Event):
         print(event)
         match event.char:
             case "\x1b":
@@ -26,6 +26,8 @@ class Root(tk.Tk):
             case "q":
                 self.reset_board()
 
+    # TODO: Clear slaves of board's Frames' [Labels]
+    # TODO: Add dot (circle) object on board to show moves
     def reset_board(self):
         self.board = Board(self.theme)
 
