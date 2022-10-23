@@ -2,30 +2,61 @@ from __future__ import annotations
 
 import tkinter as tk
 from dataclasses import dataclass, field
-from itertools import product
+from itertools import product, repeat
 from typing import Callable
 
-from .constants import PIECE_SIZE, TILE_SIZE
+import numpy as np
+
+from .constants import PIECE_SIZE, THEME, TILE_SIZE
 from .move import Position, get_valid_moves_rook
-from .piece import Piece, PieceColor, PieceType
+from .piece import FEN_MAP, Piece, PieceColor, PieceType
 
 Grid = dict[Position, Piece]
 
 
-def empty_board() -> Grid:
-    return {(row, col): Piece(row, col) for row, col in product(range(8), range(8))}
-
-
 @dataclass
 class Board:
-    theme: tuple[str, str]
-    pieces: Grid = field(init=False, default_factory=empty_board)
+    theme: tuple[str, str] = THEME.RED
+    pieces: Grid = field(init=False)
+
+    def __post_init__(self):
+        self.pieces = {
+            (row, col): Piece(row, col, theme=self.theme)
+            for row, col in product(range(8), range(8))
+        }
+        
+        self.update_from_fen()
+
+
+    def update_from_fen(self, file: str = "res/start.fen"):
+        with open(file) as f:
+            text = f.read()
+
+        config, to_move, *_ = text.split(" ")
+
+        for row_i, row in enumerate(config.split("/")):
+            col_i = 0
+            for char in row:
+                if char.isdigit():
+                    col_i += int(char)
+                    continue
+                self.place(
+                    Piece(
+                        row_i,
+                        col_i,
+                        PieceColor(char.islower()),
+                        FEN_MAP[char.lower()],
+                        theme=self.theme,
+                    )
+                )
+                col_i += 1
 
     def show_as_frame(self, master):
         for piece in self.pieces.values():
-            piece.frame(master)
+            piece.place_frame(master)
 
     def place(self, piece: Piece):
+        # self.pieces[piece.pos].delete_frame()
         self.pieces[piece.pos] = piece
 
     def piece(self, row: int, col: int) -> Piece:
@@ -46,6 +77,15 @@ class Board:
 
     def get_valid_moves(self, row: int, col: int) -> list[Position]:
         return MOVE_LIST[self.piece(row, col).type](self, row, col)
+
+    def __str__(self) -> str:
+        line = ""
+        for i, piece in enumerate(self.pieces.values()):
+            if i % 8 == 0:
+                line += "\n"
+            line += str(piece)
+
+        return line
 
 
 ValidMoveCalculator = Callable[[Board, int, int], list[Position]]

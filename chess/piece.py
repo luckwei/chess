@@ -26,6 +26,15 @@ class PieceColor(Enum):
     BLACK = 1
 
 
+FEN_MAP: dict[str, PieceType] = {
+    "p": PieceType.PAWN,
+    "n": PieceType.KNIGHT,
+    "b": PieceType.BISHOP,
+    "r": PieceType.ROOK,
+    "q": PieceType.QUEEN,
+    "k": PieceType.KING,
+}
+
 PIECE_STR: dict[PieceType, tuple[str, str]] = {
     PieceType.EMPTY: (" ", " "),
     PieceType.PAWN: ("♙", "♟"),
@@ -49,25 +58,35 @@ class Piece:
     col: int
     color: PieceColor = PieceColor.NONE
     type: PieceType = PieceType.EMPTY
+    theme: tuple[str, str] = THEME.RED
 
-    def frame(self, master) -> Frame:
+    def place_frame(self, master):
         piece_frame = Frame(
             master,
             width=TILE_SIZE,
             height=TILE_SIZE,
-            bg=THEME.RED[(self.row + self.col) % 2],
+            bg=self.theme[(self.row + self.col) % 2],
         )
 
+        piece_frame.grid(row=self.row, column=self.col)
         if self.type != PieceType.EMPTY:
+            file = f"res/{self.type.value}_{COLOR_STR[self.color]}.svg"
+            
             image = SvgImage(
-                file=f"res/{self.type.value}_{COLOR_STR[self.color]}.svg",
+                file=file,
                 scaletowidth=PIECE_SIZE,
             )
-            Label(piece_frame, image=image).place(width=TILE_SIZE, height=TILE_SIZE)
+            
+            master.images.append(image)
+            label = Label(piece_frame, image=image, bg=self.theme[(self.row+self.col)%2])
+            label.place(width=TILE_SIZE, height=TILE_SIZE)
 
-        piece_frame.grid(row=self.row, column=self.col)
 
-        return piece_frame
+        self._frame = piece_frame
+    
+    def delete_frame(self):
+        if hasattr(self, "_frame"):
+            self._frame.destroy()
 
     @property
     def pos(self):

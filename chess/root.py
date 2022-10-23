@@ -7,12 +7,9 @@ from .constants import THEME, TILE_SIZE
 
 
 class Root(tk.Tk):
-    def __init__(
-        self,
-        theme: tuple[str, str] = THEME.RED,
-        **kwargs
-    ):
+    def __init__(self, theme: tuple[str, str] = THEME.RED, **kwargs):
         super().__init__(**kwargs)
+        self.images = []
         self.theme = theme
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
@@ -33,11 +30,6 @@ class Root(tk.Tk):
 
     def reset(self):
         self.board = Board(self.theme)
-        
+
     def display_board(self):
         self.board.show_as_frame(self)
-        
-        
-        
-        
-        

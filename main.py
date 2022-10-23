@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from chess import THEME, Root
 
-
 def main() -> None:
-    Root(THEME.RED).mainloop()
+    Root()
 
 
 if __name__ == "__main__":
