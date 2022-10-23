@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from itertools import product
 from typing import Callable
 
-from .constants import THEME
+from .constants import PIECE_SIZE, THEME
 from .move import (
     Position,
     get_valid_moves_bishop,
@@ -14,7 +14,7 @@ from .move import (
     get_valid_moves_queen,
     get_valid_moves_rook,
 )
-from .piece import FEN_MAP, Piece, PieceColor, PieceType
+from .piece import COLOR_STR, FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 
 Grid = dict[Position, Piece]
@@ -28,7 +28,7 @@ def empty_board() -> Grid:
 class Board:
     theme: tuple[str, str] = THEME.RED
     pieces: Grid = field(init=False, default_factory=empty_board)
-    to_move: PieceColor=field(init=False, default=PieceColor.WHITE)
+    to_move: PieceColor = field(init=False, default=PieceColor.WHITE)
 
     def __post_init__(self):
         self.update_from_fen()
@@ -45,9 +45,6 @@ class Board:
             self.place(
                 Piece(row, col, PieceColor(char.islower()), FEN_MAP[char.lower()])
             )
-
-    def show_as_frame(self, master):
-        [piece.place_frame(master, self.theme) for piece in self.pieces.values()]
 
     def place(self, piece: Piece):
         self.pieces[piece.pos] = piece
@@ -72,8 +69,8 @@ class Board:
         pieces_str = [str(piece) for piece in self.pieces.values()]
         rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
         return "\n".join(rows)
-    
-    def get_valid_moves(self, row:int, col:int) -> list[Position]:
+
+    def get_valid_moves(self, row: int, col: int) -> list[Position]:
         # TODO: assert that chess piece color has to be this turn
         piece = self.piece(row, col)
         if piece.color != self.to_move:
