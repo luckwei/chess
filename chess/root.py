@@ -9,16 +9,14 @@ from .constants import THEME, TILE_SIZE
 class Root(tk.Tk):
     def __init__(self, theme: tuple[str, str] = THEME.RED, **kwargs):
         super().__init__(**kwargs)
-        self.images = []
         self.theme = theme
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
 
         # Bind event logic
         self.bind("<KeyPress>", self.keypress_handler, add=True)
-        self.board = Board(theme)
+        self.reset_board()
         self.display_board()
-        self.mainloop()
 
     def keypress_handler(self, event):
         print(event)
@@ -26,9 +24,9 @@ class Root(tk.Tk):
             case "\x1b":
                 self.quit()
             case "q":
-                self.reset()
+                self.reset_board()
 
-    def reset(self):
+    def reset_board(self):
         self.board = Board(self.theme)
 
     def display_board(self):

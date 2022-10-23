@@ -56,7 +56,6 @@ class Board:
             piece.place_frame(master)
 
     def place(self, piece: Piece):
-        # self.pieces[piece.pos].delete_frame()
         self.pieces[piece.pos] = piece
 
     def piece(self, row: int, col: int) -> Piece:

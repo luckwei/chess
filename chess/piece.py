@@ -35,6 +35,7 @@ FEN_MAP: dict[str, PieceType] = {
     "k": PieceType.KING,
 }
 
+
 PIECE_STR: dict[PieceType, tuple[str, str]] = {
     PieceType.EMPTY: (" ", " "),
     PieceType.PAWN: ("♙", "♟"),
@@ -51,6 +52,8 @@ COLOR_STR: dict[PieceColor, str] = {
     PieceColor.BLACK: "black",
 }
 
+PIECE_IMAGES_GLOBAL: list[SvgImage] = []
+
 
 @dataclass
 class Piece:
@@ -65,32 +68,31 @@ class Piece:
             master,
             width=TILE_SIZE,
             height=TILE_SIZE,
-            bg=self.theme[(self.row + self.col) % 2],
+            bg=self.bg,
         )
 
         piece_frame.grid(row=self.row, column=self.col)
-        if self.type != PieceType.EMPTY:
-            file = f"res/{self.type.value}_{COLOR_STR[self.color]}.svg"
-            
-            image = SvgImage(
-                file=file,
-                scaletowidth=PIECE_SIZE,
-            )
-            
-            master.images.append(image)
-            label = Label(piece_frame, image=image, bg=self.theme[(self.row+self.col)%2])
-            label.place(width=TILE_SIZE, height=TILE_SIZE)
 
+        if self.type == PieceType.EMPTY:
+            return
 
-        self._frame = piece_frame
-    
-    def delete_frame(self):
-        if hasattr(self, "_frame"):
-            self._frame.destroy()
+        image = SvgImage(
+            file=f"res/{self.type.value}_{COLOR_STR[self.color]}.svg",
+            scaletowidth=PIECE_SIZE,
+        )
+
+        label = Label(piece_frame, image=image, bg=self.bg)
+        label.place(width=TILE_SIZE, height=TILE_SIZE)
+
+        PIECE_IMAGES_GLOBAL.append(image)
 
     @property
     def pos(self):
         return (self.row, self.col)
+
+    @property
+    def bg(self) -> str:
+        return self.theme[(self.row + self.col) % 2]
 
     def __str__(self):
         return PIECE_STR[self.type][self.color.value]
