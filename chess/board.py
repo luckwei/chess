@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-import tkinter as tk
 from dataclasses import dataclass, field
 from itertools import product
 from typing import Callable
 
-import numpy as np
-
 from .constants import PIECE_SIZE, THEME, TILE_SIZE
-from .move import Position, get_valid_moves_rook
+from .move import (
+    Position,
+    get_valid_moves_bishop,
+    get_valid_moves_king,
+    get_valid_moves_knight,
+    get_valid_moves_pawn,
+    get_valid_moves_queen,
+    get_valid_moves_rook,
+)
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 
@@ -85,7 +90,14 @@ class Board:
 
 ValidMoveCalculator = Callable[[Board, int, int], list[Position]]
 
-MOVE_LIST: dict[PieceType, ValidMoveCalculator] = {PieceType.ROOK: get_valid_moves_rook}
+MOVE_LIST: dict[PieceType, ValidMoveCalculator] = {
+    PieceType.ROOK: get_valid_moves_rook,
+    PieceType.BISHOP: get_valid_moves_bishop,
+    PieceType.KNIGHT: get_valid_moves_knight,
+    PieceType.QUEEN: get_valid_moves_queen,
+    PieceType.KING: get_valid_moves_king,
+    PieceType.PAWN: get_valid_moves_pawn,
+}
 
 
 # class Tile(tk.Frame):
