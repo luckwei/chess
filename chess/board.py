@@ -32,6 +32,7 @@ class Board:
         }
 
         self.update_from_fen()
+        # print(self)
 
     def update_from_fen(self, fen: str = Setup.START):
         config, to_move, *_ = fen.replace("/", "").split(" ")
@@ -53,8 +54,7 @@ class Board:
             )
 
     def show_as_frame(self, master):
-        for piece in self.pieces.values():
-            piece.place_frame(master)
+        [piece.place_frame(master) for piece in self.pieces.values()]
 
     def place(self, piece: Piece):
         self.pieces[piece.pos] = piece
@@ -79,13 +79,9 @@ class Board:
         return MOVE_LIST[self.piece(row, col).type](self, row, col)
 
     def __str__(self) -> str:
-        line = ""
-        for i, piece in enumerate(self.pieces.values()):
-            if i % 8 == 0:
-                line += "\n"
-            line += str(piece)
-
-        return line
+        pieces_str = [str(piece) for piece in self.pieces.values()]
+        rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
+        return "\n".join(rows)
 
 
 ValidMoveCalculator = Callable[[Board, int, int], list[Position]]
