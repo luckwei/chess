@@ -6,8 +6,9 @@ from tkinter import Event, Frame, Label
 
 from tksvg import SvgImage
 
-from .constants import PIECE_SIZE, THEME, TILE_SIZE
-from .helper import Pos
+from .move import Position
+
+from .constants import PIECE_SIZE, THEME, TILE_SIZE, ThemeColors
 
 
 class PieceType(Enum):
@@ -52,8 +53,6 @@ COLOR_STR: dict[PieceColor, str] = {
     PieceColor.BLACK: "black",
 }
 
-PIECE_IMAGES_GLOBAL: list[SvgImage] = []
-
 
 @dataclass
 class Piece:
@@ -61,7 +60,7 @@ class Piece:
     col: int
     color: PieceColor = PieceColor.NONE
     type: PieceType = PieceType.EMPTY
-    theme: tuple[str, str] = THEME.RED
+    theme: ThemeColors = THEME.RED
 
     def place_frame(self, master):
         piece_frame = Frame(
@@ -76,18 +75,16 @@ class Piece:
         if self.type == PieceType.EMPTY:
             return
 
-        image = SvgImage(
+        self.image = SvgImage(
             file=f"res/{self.type.value}_{COLOR_STR[self.color]}.svg",
             scaletowidth=PIECE_SIZE,
         )
 
-        label = Label(piece_frame, image=image, bg=self.bg)
+        label = Label(piece_frame, image=self.image, bg=self.bg)
         label.place(width=TILE_SIZE, height=TILE_SIZE)
 
-        PIECE_IMAGES_GLOBAL.append(image)
-
     @property
-    def pos(self):
+    def pos(self) -> Position:
         return (self.row, self.col)
 
     @property
