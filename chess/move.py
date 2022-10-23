@@ -1,7 +1,7 @@
-from chess.board import Board
-
+from __future__ import annotations
+import chess
 
 Position = tuple[int, int]
 
-def get_valid_moves_rook(board: Board, row:int, col:int)->list[Position]:
+def get_valid_moves_rook(board: chess.Board, row:int, col:int)->list[Position]:
     ...

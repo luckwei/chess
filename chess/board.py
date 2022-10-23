@@ -5,16 +5,11 @@ from dataclasses import dataclass, field
 from itertools import product
 from typing import Callable
 
-import chess
-
-from .constants import TILE_SIZE
-from .root import Root
-from .helper import Pos
+from .constants import PIECE_SIZE, TILE_SIZE
 from .move import Position, get_valid_moves_rook
 from .piece import Piece, PieceColor, PieceType
 
-Position = tuple[int, int]
-Grid = dict[Position, chess.Piece]
+Grid = dict[Position, Piece]
 
 
 def empty_board() -> Grid:
@@ -26,29 +21,36 @@ class Board:
     theme: tuple[str, str]
     pieces: Grid = field(init=False, default_factory=empty_board)
 
+    def show_as_frame(self, master):
+        for piece in self.pieces.values():
+            piece.frame(master)
+
     def place(self, piece: Piece):
         self.pieces[piece.pos] = piece
-    
-    def piece(self, row:int, col:int) -> Piece:
+
+    def piece(self, row: int, col: int) -> Piece:
         return self.pieces[(row, col)]
-    
-    def empty(self, row:int, col:int) -> bool:
+
+    def empty(self, row: int, col: int) -> bool:
         return not bool(self.piece(row, col))
-    
-    def find_king(self, color: PieceColor) -> Piece:
-        return [piece for piece in self.pieces.values() if piece.type == PieceType.KING and piece.color == color][0]
-    
-    def get_valid_moves(self, row:int, col:int) -> list[Position]:
+
+    def find_king(self, color: PieceColor) -> Piece | None:
+        return next(
+            (
+                piece
+                for piece in self.pieces.values()
+                if piece.type == PieceType.KING and piece.color == color
+            ),
+            None,
+        )
+
+    def get_valid_moves(self, row: int, col: int) -> list[Position]:
         return MOVE_LIST[self.piece(row, col).type](self, row, col)
-        
+
 
 ValidMoveCalculator = Callable[[Board, int, int], list[Position]]
 
-MOVE_LIST: dict[PieceType, ValidMoveCalculator] = {
-    PieceType.ROOK: get_valid_moves_rook
-}
-    
-    
+MOVE_LIST: dict[PieceType, ValidMoveCalculator] = {PieceType.ROOK: get_valid_moves_rook}
 
 
 # class Tile(tk.Frame):

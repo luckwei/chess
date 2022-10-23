@@ -1,18 +1,14 @@
-import random
-from abc import ABC, abstractmethod
+from __future__ import annotations
+
 from dataclasses import InitVar, dataclass, field
-from tkinter import Event, Label
-from typing import Literal
+from enum import Enum
+from tkinter import Event, Frame, Label
 
 from tksvg import SvgImage
 
-from chess.move import Position
-
-# from .board import ChessBoard
-from .constants import PIECE_SIZE, THEME, TILE_SIZE#, Color
+from .constants import PIECE_SIZE, THEME, TILE_SIZE
 from .helper import Pos
 
-from enum import Enum
 
 class PieceType(Enum):
     EMPTY = "empty"
@@ -23,11 +19,13 @@ class PieceType(Enum):
     QUEEN = "queen"
     KING = "king"
 
+
 class PieceColor(Enum):
     NONE = -1
     WHITE = 0
     BLACK = 1
-    
+
+
 PIECE_STR: dict[PieceType, tuple[str, str]] = {
     PieceType.EMPTY: (" ", " "),
     PieceType.PAWN: ("♙", "♟"),
@@ -44,29 +42,43 @@ COLOR_STR: dict[PieceColor, str] = {
     PieceColor.BLACK: "black",
 }
 
+
 @dataclass
 class Piece:
     row: int
     col: int
     color: PieceColor = PieceColor.NONE
     type: PieceType = PieceType.EMPTY
-    
+
+    def frame(self, master) -> Frame:
+        piece_frame = Frame(
+            master,
+            width=TILE_SIZE,
+            height=TILE_SIZE,
+            bg=THEME.RED[(self.row + self.col) % 2],
+        )
+
+        if self.type != PieceType.EMPTY:
+            image = SvgImage(
+                file=f"res/{self.type.value}_{COLOR_STR[self.color]}.svg",
+                scaletowidth=PIECE_SIZE,
+            )
+            Label(piece_frame, image=image).place(width=TILE_SIZE, height=TILE_SIZE)
+
+        piece_frame.grid(row=self.row, column=self.col)
+
+        return piece_frame
+
     @property
-    def image(self) -> str|None:
-        if self.type == PieceType.EMPTY:
-            return None
-        return f"res/{self.type.value}_{COLOR_STR[self.color]}.svg"
-    
-    @property
-    def pos(self) -> Position:
+    def pos(self):
         return (self.row, self.col)
-    
+
     def __str__(self):
         return PIECE_STR[self.type][self.color.value]
-    
+
     def __bool__(self):
         return self.type != PieceType.EMPTY
-        
+
 
 # @dataclass
 # class Piece(ABC):
