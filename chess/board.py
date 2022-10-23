@@ -41,10 +41,30 @@ class Board:
         for i, char in enumerate(config):
             if char == " ":
                 continue
-            row, col = divmod(i, 8)
             self.place(
-                Piece(row, col, PieceColor(char.islower()), FEN_MAP[char.lower()])
+                Piece(*divmod(i, 8), PieceColor(char.islower()), FEN_MAP[char.lower()])
             )
+
+    def find_king(self, color: PieceColor) -> Piece:
+        return next(
+            (
+                piece
+                for piece in self.pieces.values()
+                if piece.type == PieceType.KING and piece.color == color
+            )
+        )
+
+    def get_valid_moves(self, row: int, col: int) -> list[Position]:
+        # TODO: assert that chess piece color has to be this turn
+        piece = self.piece(row, col)
+        if piece.color != self.to_move:
+            return []
+        return MOVE_CALCULATOR[piece.type](self, row, col)
+
+    def __str__(self) -> str:
+        pieces_str = [str(piece) for piece in self.pieces.values()]
+        rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
+        return "\n".join(rows)
 
     def place(self, piece: Piece):
         self.pieces[piece.pos] = piece
@@ -53,29 +73,7 @@ class Board:
         return self.pieces[(row, col)]
 
     def empty(self, row: int, col: int) -> bool:
-        return not bool(self.piece(row, col))
-
-    def find_king(self, color: PieceColor) -> Piece | None:
-        return next(
-            (
-                piece
-                for piece in self.pieces.values()
-                if piece.type == PieceType.KING and piece.color == color
-            ),
-            None,
-        )
-
-    def __str__(self) -> str:
-        pieces_str = [str(piece) for piece in self.pieces.values()]
-        rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
-        return "\n".join(rows)
-
-    def get_valid_moves(self, row: int, col: int) -> list[Position]:
-        # TODO: assert that chess piece color has to be this turn
-        piece = self.piece(row, col)
-        if piece.color != self.to_move:
-            return []
-        return MOVE_CALCULATOR[piece.type](self, row, col)
+        return self.piece(row, col).type == PieceType.EMPTY
 
 
 ValidMoveCalculator = Callable[[Board, int, int], list[Position]]
