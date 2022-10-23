@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from dataclasses import dataclass, field
-from itertools import product, repeat
+from itertools import product
 from typing import Callable
 
 import numpy as np
@@ -10,6 +10,7 @@ import numpy as np
 from .constants import PIECE_SIZE, THEME, TILE_SIZE
 from .move import Position, get_valid_moves_rook
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
+from .setup import Setup
 
 Grid = dict[Position, Piece]
 
@@ -24,32 +25,27 @@ class Board:
             (row, col): Piece(row, col, theme=self.theme)
             for row, col in product(range(8), range(8))
         }
-        
+
         self.update_from_fen()
 
+    def update_from_fen(self, fen: str = Setup.START):
+        config, to_move, *_ = fen.replace("/", "").split(" ")
 
-    def update_from_fen(self, file: str = "res/start.fen"):
-        with open(file) as f:
-            text = f.read()
-
-        config, to_move, *_ = text.split(" ")
-
-        for row_i, row in enumerate(config.split("/")):
-            col_i = 0
-            for char in row:
-                if char.isdigit():
-                    col_i += int(char)
-                    continue
-                self.place(
-                    Piece(
-                        row_i,
-                        col_i,
-                        PieceColor(char.islower()),
-                        FEN_MAP[char.lower()],
-                        theme=self.theme,
-                    )
+        for i in range(1, 9):
+            config = config.replace(str(i), " " * i)
+        for i, char in enumerate(config):
+            if char == " ":
+                continue
+            row, col = divmod(i, 8)
+            self.place(
+                Piece(
+                    row,
+                    col,
+                    PieceColor(char.islower()),
+                    FEN_MAP[char.lower()],
+                    theme=self.theme,
                 )
-                col_i += 1
+            )
 
     def show_as_frame(self, master):
         for piece in self.pieces.values():
