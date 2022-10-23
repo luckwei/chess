@@ -1,14 +1,14 @@
 from __future__ import annotations
-
+import chess
 from dataclasses import dataclass, field
 from enum import Enum
-from tkinter import Frame, Label
+from tkinter import RIDGE, SUNKEN, Button, Frame, Label
 from typing import Literal
 
 from tksvg import SvgImage
 
 from .constants import PIECE_SIZE, THEME, TILE_SIZE, ColorPair
-from .move import Position
+# from .move import Position
 
 
 class PieceType(Enum):
@@ -60,33 +60,20 @@ class Piece:
     col: int
     color: PieceColor = PieceColor.NONE
     type: PieceType = PieceType.EMPTY
-    # theme: ColorPair = THEME.RED
 
     def place_frame(self, master, theme: ColorPair):
         bg = theme[self.square_color]
-        piece_frame = Frame(
-            master,
-            width=TILE_SIZE,
-            height=TILE_SIZE,
-            bg=bg
-        )
-
-        piece_frame.grid(row=self.row, column=self.col)
-
-        if self.type == PieceType.EMPTY:
-            return
 
         self.image = SvgImage(
             file=f"res/{self.type.value}_{COLOR_STR[self.color]}.svg",
             scaletowidth=PIECE_SIZE,
         )
 
-        Label(piece_frame, image=self.image, bg=bg).place(
-            width=TILE_SIZE, height=TILE_SIZE
-        )
+        Button(master, image=self.image, bg=bg, activebackground=bg, bd=0, height=TILE_SIZE,width=TILE_SIZE).grid(row=self.row, column=self.col)
+        
 
     @property
-    def pos(self) -> Position:
+    def pos(self) -> chess.Position:
         return (self.row, self.col)
 
     @property
