@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
-from tkinter import Event, Frame, Label
+from tkinter import Frame, Label
 
 from tksvg import SvgImage
 
-from .move import Position
-
 from .constants import PIECE_SIZE, THEME, TILE_SIZE, ThemeColors
+from .move import Position
 
 
 class PieceType(Enum):
@@ -80,8 +79,9 @@ class Piece:
             scaletowidth=PIECE_SIZE,
         )
 
-        label = Label(piece_frame, image=self.image, bg=self.bg)
-        label.place(width=TILE_SIZE, height=TILE_SIZE)
+        Label(piece_frame, image=self.image, bg=self.bg).place(
+            width=TILE_SIZE, height=TILE_SIZE
+        )
 
     @property
     def pos(self) -> Position:
