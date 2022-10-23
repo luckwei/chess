@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from tkinter import Frame, Label
+from typing import Literal
 
 from tksvg import SvgImage
 
-from .constants import PIECE_SIZE, THEME, TILE_SIZE, ThemeColors
+from .constants import PIECE_SIZE, THEME, TILE_SIZE, ColorPair
 from .move import Position
 
 
@@ -59,14 +60,15 @@ class Piece:
     col: int
     color: PieceColor = PieceColor.NONE
     type: PieceType = PieceType.EMPTY
-    theme: ThemeColors = THEME.RED
+    # theme: ColorPair = THEME.RED
 
-    def place_frame(self, master):
+    def place_frame(self, master, theme: ColorPair):
+        bg = theme[self.square_color]
         piece_frame = Frame(
             master,
             width=TILE_SIZE,
             height=TILE_SIZE,
-            bg=self.bg,
+            bg=bg
         )
 
         piece_frame.grid(row=self.row, column=self.col)
@@ -79,7 +81,7 @@ class Piece:
             scaletowidth=PIECE_SIZE,
         )
 
-        Label(piece_frame, image=self.image, bg=self.bg).place(
+        Label(piece_frame, image=self.image, bg=bg).place(
             width=TILE_SIZE, height=TILE_SIZE
         )
 
@@ -88,8 +90,8 @@ class Piece:
         return (self.row, self.col)
 
     @property
-    def bg(self) -> str:
-        return self.theme[(self.row + self.col) % 2]
+    def square_color(self) -> int:
+        return (self.row + self.col) % 2
 
     def __str__(self):
         return PIECE_STR[self.type][self.color.value]
