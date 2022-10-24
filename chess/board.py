@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from itertools import product
 from typing import Callable
 
-from .constants import PIECE_SIZE, THEME
+from .constants import THEME
 from .move import (
     Position,
     get_valid_moves_bishop,
@@ -63,14 +63,7 @@ class Board:
         )
 
     def get_valid_moves(self, row: int, col: int) -> list[Position]:
-        # TODO: assert that chess piece color has to be this turn
         return MOVE_CALCULATOR[self.piece(row, col).type](self, row, col)
-
-    def get_move_calculator(self, row: int, col: int) -> CalibratedMoveCalculator:
-        def calibrated_move_calculator():
-            return MOVE_CALCULATOR[self.piece(row, col).type](self, row, col)
-
-        return calibrated_move_calculator
 
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
@@ -78,7 +71,7 @@ class Board:
         return "\n".join(rows)
 
     def place(self, piece: Piece):
-        self.pieces[piece.pos] = piece
+        self.pieces[(piece.row, piece.col)] = piece
 
     def piece(self, row: int, col: int) -> Piece:
         return self.pieces[(row, col)]

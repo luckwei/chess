@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from tkinter import RIDGE, SUNKEN, Button, Frame, Label
 from typing import Literal
 
 from tksvg import SvgImage
 
 import chess
-
-from .constants import PIECE_SIZE, THEME, TILE_SIZE, ColorPair
 
 
 class PieceType(Enum):
@@ -63,11 +60,7 @@ class Piece:
     type: PieceType = PieceType.EMPTY
 
     @property
-    def pos(self) -> chess.Position:
-        return (self.row, self.col)
-    
-    @property
-    def dir(self) -> Literal[-1,1,0]:
+    def dir(self) -> Literal[-1, 1, 0]:
         match self.color:
             case PieceColor.WHITE:
                 return -1
