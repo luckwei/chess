@@ -1,5 +1,3 @@
-from enum import Enum
-
 TILE_SIZE = 60
 PIECE_SIZE = 53
 

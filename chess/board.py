@@ -2,20 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import product
-from typing import Callable
 
 from .constants import THEME
-from .move import (
-    Position,
-    get_valid_moves_bishop,
-    get_valid_moves_empty,
-    get_valid_moves_king,
-    get_valid_moves_knight,
-    get_valid_moves_pawn,
-    get_valid_moves_queen,
-    get_valid_moves_rook,
-)
-from .piece import COLOR_STR, FEN_MAP, Piece, PieceColor, PieceType
+from .move import MOVE_CALCULATORS, Position
+from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 
 Grid = dict[Position, Piece]
@@ -63,7 +53,7 @@ class Board:
         )
 
     def get_valid_moves(self, row: int, col: int) -> list[Position]:
-        return MOVE_CALCULATOR[self.piece(row, col).type](self, row, col)
+        return MOVE_CALCULATORS[self.piece(row, col).type](self, row, col)
 
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
@@ -78,17 +68,3 @@ class Board:
 
     def empty(self, row: int, col: int) -> bool:
         return self.piece(row, col).type == PieceType.EMPTY
-
-
-ValidMoveCalculator = Callable[[Board, int, int], list[Position]]
-CalibratedMoveCalculator = Callable[[], list[Position]]
-
-MOVE_CALCULATOR: dict[PieceType, ValidMoveCalculator] = {
-    PieceType.EMPTY: get_valid_moves_empty,
-    PieceType.ROOK: get_valid_moves_rook,
-    PieceType.BISHOP: get_valid_moves_bishop,
-    PieceType.KNIGHT: get_valid_moves_knight,
-    PieceType.QUEEN: get_valid_moves_queen,
-    PieceType.KING: get_valid_moves_king,
-    PieceType.PAWN: get_valid_moves_pawn,
-}
