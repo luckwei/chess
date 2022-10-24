@@ -14,12 +14,11 @@ def get_valid_moves_pawn(board: chess.Board, row: int, col: int) -> list[Positio
     piece = board.piece(row, col)
     
     valid_moves = []
-    direction = -1 if piece.color == PieceColor.WHITE else 1
     
-    valid_moves.append((row+direction, col))
-    valid_moves.append((row+direction*2, col))
-    valid_moves.append((row+direction, col+1))
-    valid_moves.append((row+direction, col-1))
+    valid_moves.append((row+piece.dir, col))
+    valid_moves.append((row+piece.dir*2, col))
+    valid_moves.append((row+piece.dir, col+1))
+    valid_moves.append((row+piece.dir, col-1))
     print(valid_moves)
     return valid_moves
 

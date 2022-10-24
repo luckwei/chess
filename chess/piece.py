@@ -65,6 +65,15 @@ class Piece:
     @property
     def pos(self) -> chess.Position:
         return (self.row, self.col)
+    
+    @property
+    def dir(self) -> Literal[-1,1,0]:
+        match self.color:
+            case PieceColor.WHITE:
+                return -1
+            case PieceColor.BLACK:
+                return 1
+        return 0
 
     @property
     def square_color(self) -> int:
