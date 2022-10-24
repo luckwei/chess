@@ -78,5 +78,6 @@ class Root(Tk):
     def calibrate_button_function(self, row, col) -> Callable[[], None]:
         def button_function() -> None:
             list_of_moves = self.board.get_valid_moves(row, col)
-            self.capture(row, col, *choice(list_of_moves))
+            if list_of_moves:
+                self.capture(row, col, *choice(list_of_moves))
         return button_function
