@@ -29,10 +29,17 @@ def empty_board() -> Grid:
 class Board:
     theme: tuple[str, str] = THEME.RED
     pieces: Grid = field(init=False, default_factory=empty_board)
-    to_move: PieceColor = field(init=False, default=PieceColor.WHITE)
+    color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
 
     def __post_init__(self):
-        self.update_from_fen()
+        self.update_from_fen(Setup.START)
+
+    def toggle_color_turn(self):
+        self.color_turn = (
+            PieceColor.WHITE
+            if self.color_turn == PieceColor.BLACK
+            else PieceColor.BLACK
+        )
 
     def update_from_fen(self, fen: str = Setup.START):
         config, *_ = fen.replace("/", "").split(" ")
@@ -58,12 +65,13 @@ class Board:
     def get_valid_moves(self, row: int, col: int) -> list[Position]:
         # TODO: assert that chess piece color has to be this turn
         return MOVE_CALCULATOR[self.piece(row, col).type](self, row, col)
-    
-    def get_move_calculator(self, row:int, col:int) -> CalibratedMoveCalculator:
+
+    def get_move_calculator(self, row: int, col: int) -> CalibratedMoveCalculator:
         def calibrated_move_calculator():
             return MOVE_CALCULATOR[self.piece(row, col).type](self, row, col)
+
         return calibrated_move_calculator
-    
+
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
         rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
