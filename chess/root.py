@@ -8,12 +8,13 @@ from typing import Callable
 from tksvg import SvgImage
 
 from .board import Board
-from .constants import PIECE_SIZE, THEME, TILE_SIZE
+from .constants import PIECE_SIZE, THEME, TILE_SIZE, ColorPair
+from .move import Position
 from .piece import COLOR_STR, Piece
 
 
 class Root(Tk):
-    def __init__(self, theme: tuple[str, str] = THEME.RED):
+    def __init__(self, theme: ColorPair = THEME.RED):
         super().__init__()
         self.images = []
         self.theme = theme
@@ -24,12 +25,12 @@ class Root(Tk):
         self.bind("<KeyPress>", self.keypress_handler, add=True)
         self.reset_board()
 
-    def capture(self, row1, col1, row2, col2):
-        piece1 = self.board.piece(row1, col1)
-        self.board.place(Piece(row2, col2, piece1.color, piece1.type))
-        self.board.place(Piece(row1, col1))
-        self.refresh_piece(row1, col1)
-        self.refresh_piece(row2, col2)
+    def capture(self, pos_from: Position, pos_to: Position):
+        piece1 = self.board.piece(*pos_from)
+        self.board.place(Piece(*pos_to, piece1.color, piece1.type))
+        self.board.place(Piece(*pos_from))
+        self.refresh_piece(*pos_from)
+        self.refresh_piece(*pos_to)
         self.board.toggle_color_turn()
 
     def keypress_handler(self, event: Event):
@@ -72,9 +73,9 @@ class Root(Tk):
 
     def calibrate_button_function(self, row, col) -> Callable[[], None]:
         def button_function() -> None:
-            list_of_moves = self.board.get_valid_moves(row, col)
-            if len(list_of_moves) == 0:
+            valid_moves = self.board.get_valid_moves(row, col)
+            if not valid_moves:
                 return
-            self.capture(row, col, *choice(list_of_moves))
+            self.capture((row, col), choice(valid_moves))
 
         return button_function
