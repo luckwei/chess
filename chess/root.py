@@ -3,6 +3,7 @@ from itertools import product
 from random import choice
 
 from tkinter import Button, Event, Tk
+from typing import Callable
 
 from tksvg import SvgImage
 
@@ -35,7 +36,6 @@ class Root(Tk):
     def toggle_board_to_move(self):
         self.board.to_move = PieceColor.WHITE if self.board.to_move == PieceColor.BLACK else PieceColor.BLACK
 
-
     def keypress_handler(self, event: Event):
         print(event)
         match event.char:
@@ -67,18 +67,16 @@ class Root(Tk):
             bd=0,
             height=TILE_SIZE,
             width=TILE_SIZE,
-            command=self.get_valid_moves_for_this_piece(piece.row, piece.col),
+            command=self.calibrate_button_function(row, col),
         )
         button.grid(row=piece.row, column=piece.col)
     
     def refresh_board(self):
         for row, col in product(range(8), range(8)):
             self.refresh_piece(row, col)
-
-    def get_valid_moves_for_this_piece(self, row, col):
-        def custom_function():
-            valid_moves = self.board.get_valid_moves(row, col)
-            row2, col2 = choice(valid_moves)
-            self.capture(row, col, row2, col2)
-
-        return custom_function
+    
+    def calibrate_button_function(self, row, col) -> Callable[[], None]:
+        def button_function() -> None:
+            list_of_moves = self.board.get_valid_moves(row, col)
+            self.capture(row, col, *choice(list_of_moves))
+        return button_function

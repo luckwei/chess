@@ -4,10 +4,16 @@ import chess
 
 Position = tuple[int, int]
 
+def get_valid_moves_empty(board: chess.Board, row: int, col: int) -> list[Position]:
+    return []
 
 def get_valid_moves_pawn(board: chess.Board, row: int, col: int) -> list[Position]:
-    valid_moves = []
+    if board.piece(row, col).color != board.to_move:
+        return []
+    
     piece = board.piece(row, col)
+    
+    valid_moves = []
     direction = -1 if piece.color == PieceColor.WHITE else 1
     
     valid_moves.append((row+direction, col))

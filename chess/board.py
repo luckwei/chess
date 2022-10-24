@@ -8,6 +8,7 @@ from .constants import PIECE_SIZE, THEME
 from .move import (
     Position,
     get_valid_moves_bishop,
+    get_valid_moves_empty,
     get_valid_moves_king,
     get_valid_moves_knight,
     get_valid_moves_pawn,
@@ -56,11 +57,13 @@ class Board:
 
     def get_valid_moves(self, row: int, col: int) -> list[Position]:
         # TODO: assert that chess piece color has to be this turn
-        piece = self.piece(row, col)
-        if piece.color != self.to_move:
-            return []
-        return MOVE_CALCULATOR[piece.type](self, row, col)
-
+        return MOVE_CALCULATOR[self.piece(row, col).type](self, row, col)
+    
+    def get_move_calculator(self, row:int, col:int) -> CalibratedMoveCalculator:
+        def calibrated_move_calculator():
+            return MOVE_CALCULATOR[self.piece(row, col).type](self, row, col)
+        return calibrated_move_calculator
+    
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
         rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
@@ -77,8 +80,10 @@ class Board:
 
 
 ValidMoveCalculator = Callable[[Board, int, int], list[Position]]
+CalibratedMoveCalculator = Callable[[], list[Position]]
 
 MOVE_CALCULATOR: dict[PieceType, ValidMoveCalculator] = {
+    PieceType.EMPTY: get_valid_moves_empty,
     PieceType.ROOK: get_valid_moves_rook,
     PieceType.BISHOP: get_valid_moves_bishop,
     PieceType.KNIGHT: get_valid_moves_knight,
