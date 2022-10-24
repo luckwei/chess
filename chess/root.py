@@ -1,16 +1,15 @@
 from __future__ import annotations
+
 from itertools import product
 from random import choice
-
 from tkinter import Button, Event, Tk
 from typing import Callable
 
 from tksvg import SvgImage
 
-from chess.piece import COLOR_STR, Piece, PieceColor
-
 from .board import Board
 from .constants import PIECE_SIZE, THEME, TILE_SIZE
+from .piece import COLOR_STR, Piece
 
 
 class Root(Tk):
@@ -31,6 +30,7 @@ class Root(Tk):
         self.board.place(Piece(row1, col1))
         self.refresh_piece(row1, col1)
         self.refresh_piece(row2, col2)
+        self.board.toggle_color_turn()
 
     def keypress_handler(self, event: Event):
         print(event)
@@ -55,7 +55,7 @@ class Root(Tk):
         )
         self.images.append(image)
 
-        button = Button(
+        Button(
             self,
             image=image,
             bg=bg,
@@ -64,8 +64,7 @@ class Root(Tk):
             height=TILE_SIZE,
             width=TILE_SIZE,
             command=self.calibrate_button_function(row, col),
-        )
-        button.grid(row=piece.row, column=piece.col)
+        ).grid(row=row, column=col)
 
     def refresh_board(self):
         for row, col in product(range(8), range(8)):
@@ -74,8 +73,8 @@ class Root(Tk):
     def calibrate_button_function(self, row, col) -> Callable[[], None]:
         def button_function() -> None:
             list_of_moves = self.board.get_valid_moves(row, col)
-            if list_of_moves:
-                self.capture(row, col, *choice(list_of_moves))
-                self.board.toggle_color_turn()
+            if len(list_of_moves) == 0:
+                return
+            self.capture(row, col, *choice(list_of_moves))
 
         return button_function
