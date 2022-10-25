@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
 from typing import Literal
+
 from .types import Position
+
 
 class PieceType(StrEnum):
     EMPTY = auto()
@@ -13,6 +15,7 @@ class PieceType(StrEnum):
     BISHOP = auto()
     QUEEN = auto()
     KING = auto()
+
 
 class PieceColor(Enum):
     NONE = -1
