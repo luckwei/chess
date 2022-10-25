@@ -1,5 +1,5 @@
 from .board import Board  # Uses [constants], move, [piece], [setup]
-from .constants import PIECE_SIZE, THEME, TILE_SIZE
+from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
 from .move import Position, get_valid_moves_rook  # Uses (board), [piece]
 from .piece import Piece
 from .root import Root  # Uses board, [constants], [piece], -move-

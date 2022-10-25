@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from chess import THEME, Root
+from chess import Root
+
 
 def main() -> None:
     Root().mainloop()

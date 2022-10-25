@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from itertools import product
 
-from .constants import THEME
+from .constants import THEME_RED
 from .move import MOVE_CALCULATORS, Move, Position
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
+from .types import ColorPair
 
 _Grid = dict[Position, Piece]
 
@@ -17,10 +18,11 @@ def empty_board() -> _Grid:
 
 @dataclass
 class Board:
-    theme: tuple[str, str] = THEME.RED
+    theme: ColorPair = THEME_RED
     pieces: _Grid = field(init=False, default_factory=empty_board)
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
-    # last played for empassat: record down pawn possition if double square
+    empassat_target: Position | None = field(init=False, default=None)
+    fifty_move_counter: int = field(init=False, default=0)
     # REcord down 50 move rule
 
     def __post_init__(self):
@@ -64,7 +66,7 @@ class Board:
 
     def place(self, piece: Piece) -> None:
         self.pieces[piece.pos] = piece
-        
+
     def remove(self, pos: Position) -> None:
         self.place(Piece(pos))
 
