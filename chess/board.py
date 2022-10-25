@@ -32,16 +32,16 @@ class Board:
         )
 
     def update_from_fen(self, fen: str = Setup.START):
-        config, *_ = fen.replace("/", "").split(" ")
-        #change to string loop
-        for i in range(1, 9):
-            config = config.replace(str(i), " " * i)
-        for i, char in enumerate(config):
-            if char == " ":
+        config, color_turn, *_ = fen.replace("/", "").split(" ")
+        self.color_turn = PieceColor.WHITE if color_turn == "w" else PieceColor.BLACK
+
+        for digit in "12345678":
+            config = config.replace(digit, " " * int(digit))
+
+        for i, p in enumerate(config):
+            if p == " ":
                 continue
-            self.place(
-                Piece(divmod(i, 8), PieceColor(char.islower()), FEN_MAP[char.lower()])
-            )
+            self.place(Piece(divmod(i, 8), PieceColor(p.islower()), FEN_MAP[p.lower()]))
 
     def find_king(self, color: PieceColor) -> Piece:
         return next(
