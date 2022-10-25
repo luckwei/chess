@@ -39,7 +39,7 @@ class Root(Tk):
         self,
         _from: Position,
         _to: Position,
-        _capture: Position | None = None,
+        _extra_capture: Position | None = None,
         enpassant_target: Position | None = None,
     ) -> None:
         piece = self.board.piece(_from)
@@ -50,13 +50,20 @@ class Root(Tk):
         self.board.place(Piece(_to, piece.color, piece.type))
         self.refresh_piece(_to)
 
-        if _capture and _capture != _to:
-            self.board.remove(_capture)
-            self.refresh_piece(_capture)
+        if _extra_capture:
+            self.board.remove(_extra_capture)
+            self.refresh_piece(_extra_capture)
 
         self.board.enpassant_target = enpassant_target
 
+        # add additional flag: reset when pawn moves is made or capture
+        
+        if reset:=True:
+            self.board.fifty_move_counter = 0
         self.board.fifty_move_counter += 1
+        if self.board.fifty_move_counter >= 50:
+            ... #draw! Ending game, check or checkmate
+        
         self.board.toggle_color_turn()
 
     def calibrate_btn_cmd(self, pos: Position) -> Callable[[], None]:
@@ -65,7 +72,7 @@ class Root(Tk):
             if not valid_moves:
                 return
             move = choice(valid_moves)
-            self.move_piece(pos, move._to, move._capture, move.enpassant_target)
+            self.move_piece(pos, move._to, move._extra_capture, move.enpassant_target)
 
         return btn_cmd
 
