@@ -34,12 +34,21 @@ class Root(Tk):
                 self.reset_board()
 
     # account for empassant
-    def capture(self, pos_from: Position, pos_to: Position) -> None:
-        piece1 = self.board.piece(pos_from)
-        self.board.place(Piece(pos_to, piece1.color, piece1.type))
-        self.board.place(Piece(pos_from))
+    def move_piece(
+        self, pos_from: Position, pos_to: Position, capture_at: Position|None
+    ) -> None:
+        piece = self.board.piece(pos_from)
+
+        self.board.remove(pos_from)
         self.refresh_piece(pos_from)
+
+        self.board.place(Piece(pos_to, piece.color, piece.type))
         self.refresh_piece(pos_to)
+
+        if capture_at and capture_at != pos_to:
+            self.board.remove(capture_at)
+            self.refresh_piece(capture_at)
+
         self.board.toggle_color_turn()
 
     def reset_board(self) -> None:
@@ -80,6 +89,7 @@ class Root(Tk):
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 return
-            self.capture(pos, choice(valid_moves))
+            chosen_move = choice(valid_moves)
+            self.move_piece(pos, chosen_move.move_to, chosen_move.capture_at)
 
         return btn_cmd

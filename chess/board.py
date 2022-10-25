@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from itertools import product
 
 from .constants import THEME
-from .move import MOVE_CALCULATORS, Position
+from .move import MOVE_CALCULATORS, Move, Position
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 
@@ -52,7 +52,7 @@ class Board:
             )
         )
 
-    def get_valid_moves(self, pos: Position) -> list[Position]:
+    def get_valid_moves(self, pos: Position) -> list[Move]:
         return MOVE_CALCULATORS[self.piece(pos).type](self, pos)
 
     def __str__(self) -> str:
@@ -60,8 +60,11 @@ class Board:
         rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
         return "\n".join(rows)
 
-    def place(self, piece: Piece):
+    def place(self, piece: Piece) -> None:
         self.pieces[piece.pos] = piece
+        
+    def remove(self, pos: Position) -> None:
+        self.place(Piece(pos))
 
     def piece(self, pos: Position) -> Piece:
         return self.pieces[pos]

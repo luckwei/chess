@@ -147,7 +147,8 @@ def not_targetted(board: Board, pos: Position) -> bool:
     return True
 
 
-def print_valid_moves(valid_moves: list[Position], piece: Piece):
+def print_valid_moves(moves: list[Move], piece: Piece):
+    valid_moves = [move.move_to for move in moves]
     print(
         f"{piece.type}\t{valid_moves=}"
         if valid_moves
@@ -155,12 +156,12 @@ def print_valid_moves(valid_moves: list[Position], piece: Piece):
     )
 
 
-def get_valid_moves_empty(*args, **kwargs) -> list[Position]:
+def get_valid_moves_empty(*args, **kwargs) -> list[Move]:
     print("!EMPTY!")
     return []
 
 
-def get_valid_moves_pawn(board: Board, pos: Position) -> list[Position]:
+def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
@@ -171,74 +172,73 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Position]:
         + Move.front_short(board, pos)
         + Move.front_long(board, pos)
     )
-    valid_moves = [move.move_to for move in all_moves if move.valid]
+    valid_moves = [move for move in all_moves if move.valid]
 
     print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
-def get_valid_moves_rook(board: Board, pos: Position) -> list[Position]:
+def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
 
     all_moves = Move.perp(board, pos)
-    valid_moves = [move.move_to for move in Move.perp(board, pos) if move.valid]
+    valid_moves = [move for move in Move.perp(board, pos) if move.valid]
 
     print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
 ## TODO: Root remove mechanism, hence all these return list[Move], use Move information to do UI change
-#### TO REFACTOR
-def get_valid_moves_knight(board: Board, pos: Position) -> list[Position]:
+def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
     all_moves = Move.lshapes(board, pos)
-    valid_moves = [move.move_to for move in all_moves if move.valid]
+    valid_moves = [move for move in all_moves if move.valid]
 
     print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
-def get_valid_moves_bishop(board: Board, pos: Position) -> list[Position]:
+def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
 
     all_moves = Move.diag(board, pos)
-    valid_moves = [move.move_to for move in all_moves if move.valid]
+    valid_moves = [move for move in all_moves if move.valid]
 
     print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
-def get_valid_moves_queen(board: Board, pos: Position) -> list[Position]:
+def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
 
     all_moves = Move.diag(board, pos) + Move.perp(board, pos)
-    valid_moves = [move.move_to for move in all_moves if move.valid]
+    valid_moves = [move for move in all_moves if move.valid]
 
     print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
-def get_valid_moves_king(board: Board, pos: Position) -> list[Position]:
+def get_valid_moves_king(board: Board, pos: Position) -> list[Move]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
 
     all_moves = Move.diag(board, pos, 1) + Move.perp(board, pos, 1)
-    valid_moves = [move.move_to for move in all_moves if move.valid]
+    valid_moves = [move for move in all_moves if move.valid]
 
     print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
-ValidMoveCalculator = Callable[[Board, Position], list[Position]]
+ValidMoveCalculator = Callable[[Board, Position], list[Move]]
 
 MOVE_CALCULATORS: dict[PieceType, ValidMoveCalculator] = {
     PieceType.EMPTY: get_valid_moves_empty,
