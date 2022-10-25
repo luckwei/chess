@@ -8,13 +8,13 @@ from typing import Callable
 from tksvg import SvgImage
 
 from .board import Board
-from .constants import PIECE_SIZE, THEME, TILE_SIZE
+from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
 from .piece import COLOR_STR, Piece
 from .types import ColorPair, Position
 
 
 class Root(Tk):
-    def __init__(self, theme: ColorPair = THEME.RED) -> None:
+    def __init__(self, theme: ColorPair = THEME_RED) -> None:
         super().__init__()
         self.imgs = []
         self.theme = theme
@@ -35,7 +35,11 @@ class Root(Tk):
 
     # account for empassant
     def move_piece(
-        self, pos_from: Position, pos_to: Position, capture_at: Position|None
+        self,
+        pos_from: Position,
+        pos_to: Position,
+        capture_at: Position | None=None,
+        empassat_target: Position | None = None,
     ) -> None:
         piece = self.board.piece(pos_from)
 
@@ -49,7 +53,20 @@ class Root(Tk):
             self.board.remove(capture_at)
             self.refresh_piece(capture_at)
 
+        self.board.empassat_target = empassat_target
+
+        self.board.fifty_move_counter += 1
         self.board.toggle_color_turn()
+
+    def calibrate_btn_cmd(self, pos: Position) -> Callable[[], None]:
+        def btn_cmd() -> None:
+            valid_moves = self.board.get_valid_moves(pos)
+            if not valid_moves:
+                return
+            move = choice(valid_moves)
+            self.move_piece(pos, move.move_to, move.capture_at, move.empassat_target)
+
+        return btn_cmd
 
     def reset_board(self) -> None:
         self.board = Board(self.theme)
@@ -84,12 +101,3 @@ class Root(Tk):
             self.refresh_piece(pos)
 
     # account for empassant
-    def calibrate_btn_cmd(self, pos: Position) -> Callable[[], None]:
-        def btn_cmd() -> None:
-            valid_moves = self.board.get_valid_moves(pos)
-            if not valid_moves:
-                return
-            chosen_move = choice(valid_moves)
-            self.move_piece(pos, chosen_move.move_to, chosen_move.capture_at)
-
-        return btn_cmd

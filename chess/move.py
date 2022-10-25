@@ -27,7 +27,8 @@ class Move:
     board: Board
     move_from: Position
     move_to: Position
-    capture_at: Position | None
+    capture_at: Position | None=None
+    empassat_target: Position | None = None
 
     @classmethod
     def diag(cls, board: Board, move_from: Position, n=7) -> list[Self]:
@@ -105,7 +106,7 @@ class Move:
         row, col = move_from
         dir = board.piece(move_from).dir
 
-        F2 = cls(board, move_from, (row + 2 * dir, col), None)
+        F2 = cls(board, move_from, move_to := (row + 2 * dir, col), empassat_target=move_to)
         return [F2]
 
     # Valid should not be part of piece as property, either external or part of class methods
