@@ -207,25 +207,25 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
     enpassant = [
         move
         for move in Move.enpassant(board, piece, pos)
-        if PawnCheck.enpassant_valid(move) and move.valid
+        if move.valid and PawnCheck.enpassant_valid(move)
     ]
 
     pincer = [
         move
         for move in Move.pincer(board, piece, pos)
-        if PawnCheck.pincer_valid(move) and move.valid
+        if move.valid and PawnCheck.pincer_valid(move)
     ]
 
     front_long = [
         move
         for move in Move.front_long(board, piece, pos)
-        if PawnCheck.front_long_valid(move) and move.valid
+        if move.valid and PawnCheck.front_long_valid(move)
     ]
 
     front_short = [
         move
         for move in Move.front_short(board, piece, pos)
-        if PawnCheck.front_short_valid(move) and move.valid
+        if move.valid and PawnCheck.front_short_valid(move)
     ]
 
     if enpassant:
@@ -334,11 +334,6 @@ class PawnCheck:
     def front_short_valid(move: Move) -> bool:
         _to_empty = not move.board.piece(move._to)
         return _to_empty
-
-
-class KingCheck:
-    ...
-    # just dont get checked on next turn, same as valid
 
 
 class Checks:
