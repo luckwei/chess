@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from itertools import product
 from typing import Callable, Protocol, Self
 
+import numpy as np
+
 from .piece import COLOR_STR, Piece, PieceColor, PieceType
 
 Position = tuple[int, int]
@@ -20,120 +22,144 @@ class Board(Protocol):
     def find_king(self, color: PieceColor) -> Piece:
         ...
 
-#### TO DEPRECIATE
-def generate_moves_lshape(row, col, n=7) -> list[Position]:
-    all_moves = [
-        (row + 2 * sign1, col + sign2) for sign1, sign2 in product((-1, 1), (-1, 1))
-    ] + [(row + sign1, col + 2 * sign2) for sign1, sign2 in product((-1, 1), (-1, 1))]
-    return all_moves
 
 @dataclass
 class Move:
     board: Board
     move_from: Position
     move_to: Position
-    capture_at: Position  # = field(init=False)
+    capture_at: Position | None
 
     @classmethod
-    def create_diag_list(
-        cls, board: Board, move_from: Position, n=7, front_only=False
-    ) -> list[Self]:
+    def diagonals(cls, board: Board, move_from: Position, n=7) -> list[Self]:
         row, col = move_from
-        move_to_list = []
-        for i in range(1, n+1):
-            move_to_list.append((row + i, col + i))  # NE
-            move_to_list.append((row + i, col - i))  # NW
-            if front_only:
-                continue
-            move_to_list.append((row - i, col + i))  # SE
-            move_to_list.append((row - i, col - i))  # SW
-
-        move_obj_list = [
-            cls(board, move_from, move_to, move_to) for move_to in move_to_list
-        ]
-        #TODO:validation should not be done in the whole class, move into these factory class methods later
+        move_obj_list = []
+        for i in range(1, n + 1):
+            NE = cls(board, move_from, move_to := (row + i, col + i), move_to)
+            NW = cls(board, move_from, move_to := (row + i, col - i), move_to)
+            SE = cls(board, move_from, move_to := (row - i, col + i), move_to)
+            SW = cls(board, move_from, move_to := (row - i, col - i), move_to)
+            move_obj_list.extend([NE, NW, SE, SW])
+        # TODO:validation should not be done in the whole class, move into these factory class methods later
 
         return move_obj_list
 
     @classmethod
-    def create_perp_list(cls, board: Board, move_from: Position, n=7) -> list[Self]:
+    def perpendiculars(cls, board: Board, move_from: Position, n=7) -> list[Self]:
         row, col = move_from
-        move_to_list = []
-        for i in range(1, n+1):
-            move_to_list.append((row + i, col))  # N
-            move_to_list.append((row - i, col))  # S
-            move_to_list.append((row, col + i))  # E
-            move_to_list.append((row, col - i))  # W
-
-        move_obj_list = [
-            cls(board, move_from, move_to, move_to) for move_to in move_to_list
-        ]
-        #TODO:validation should not be done in the whole class, move into these factory class methods later
+        move_obj_list = []
+        for i in range(1, n + 1):
+            N = cls(board, move_from, move_to := (row + i, col), move_to)
+            S = cls(board, move_from, move_to := (row - i, col), move_to)
+            E = cls(board, move_from, move_to := (row, col + i), move_to)
+            W = cls(board, move_from, move_to := (row, col - i), move_to)
+            move_obj_list.extend([N, S, E, W])
+        # TODO:validation should not be done in the whole class, move into these factory class methods later
 
         return move_obj_list
 
     @classmethod
-    def create_lshape_list(cls, board, move_from) -> list[Self]:
-        # to be rethought
-        ...
+    def lshapes(cls, board: Board, move_from: Position) -> list[Self]:
+        row, col = move_from
+        direction = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+        magnitude = [(1, 2), (2, 1)]
+        vec = [np.multiply(*dm) for dm in product(direction, magnitude)]
+        move_obj_list = [
+            cls(board, move_from, move_to := (row + x, col + y), move_to)
+            for x, y in vec
+        ]
+        return move_obj_list
 
     @classmethod
-    def empassant(cls, board, move_from) -> list[Self]:
-        # captures but different from when landed
-        ...
+    def pincer(cls, board: Board, move_from: Position) -> list[Self]:
+        row, col = move_from
+        dir = board.piece(row, col).dir
+        L = cls(board, move_from, move_to := (row + dir, col + 1), move_to)
+        R = cls(board, move_from, move_to := (row + dir, col - 1), move_to)
+
+        return [L, R]
 
     @classmethod
-    def front_short(cls, board, move_from) -> list[Self]:
+    def empassant(cls, board: Board, move_from: Position) -> list[Self]:
+        row, col = move_from
+        dir = board.piece(row, col).dir
+        # implement board last move to check whether it was a jump long jump
+        # maybe also implement piece last move to check if pawn at the side was a long jump
+        L = cls(board, move_from, (row + dir, col + 1), (row, col + 1))
+        R = cls(board, move_from, (row + dir, col - 1), (row, col - 1))
+
+        return [L, R]
+
+    @classmethod
+    def front_short(cls, board: Board, move_from: Position) -> list[Self]:
         # does not allow capture
-        ...
+        # put condition here
+        row, col = move_from
+        dir = board.piece(row, col).dir
+
+        F1 = cls(board, move_from, (row + dir, col), None)
+        return [F1]
 
     @classmethod
     def front_long(cls, board, move_from) -> list[Self]:
         # does not allow capture
-        ...
+        row, col = move_from
+        dir = board.piece(row, col).dir
+
+        F2 = cls(board, move_from, (row + 2 * dir, col), None)
+        return [F2]
 
     @property
     def valid(self) -> bool:
-        return valid(self.board, *self.move_to)
+        return (
+            Checks.in_grid(*self.move_to)
+            and Checks.not_own_color(self.board, *self.move_to)
+            # either king not checked or king will not be checked, create OR condition TODO
+            and Checks.king_not_checked(self.board)
+        )
 
 
-def targetted_square(board: Board, row: int, col: int) -> bool:
+class Checks:
+    @staticmethod
+    def in_grid(row: int, col: int) -> bool:
+        return max(row, col) <= 7 and min(row, col) >= 0
+
+    @staticmethod
+    def not_own_color(board: Board, row: int, col: int) -> bool:
+        return board.piece(row, col).color != board.color_turn
+
+    @staticmethod
+    def king_not_checked(board: Board) -> bool:
+        # check for enemy fire in king's current psotion
+        king = board.find_king(board.color_turn)
+        return not_targetted(board, king.row, king.col)
+
+    @staticmethod
+    def no_obstruction(board: Board, move_from: Position, move_to: Position) -> bool:
+        ...
+
+
+
+def not_targetted(board: Board, row: int, col: int) -> bool:
     # check for enemy fire
     # bishops and queens on the diag, rook on the verts,
     # pawns on the near diags
     # knights on the Ls
-    king = board.find_king(board.color_turn)
     return True
 
 
-def king_in_check(board: Board) -> bool:
-    # check for enemy fire in king's current psotion
-    king = board.find_king(board.color_turn)
-    return targetted_square(board, king.row, king.col)
-    ...
+def print_valid_moves(valid_moves: list[Position], piece: Piece):
+    print(
+        f"{piece.type}\t{valid_moves=}"
+        if valid_moves
+        else f"!NO VALID {piece.type} MOVES!"
+    )
 
 
-def no_piece_in_line(board: Board, row: int, col: int) -> bool:
-    return True
-    ...
-
-
-def enemy(board: Board, row: int, col: int) -> bool:
-    return board.piece(row, col).color != board.color_turn
-
-
-def in_grid(row: int, col: int) -> bool:
-    return max(row, col) <= 7 and min(row, col) >= 0
-
-
-def valid(board: Board, row: int, col: int) -> bool:
-    return in_grid(row, col) and enemy(board, row, col) and king_in_check(board)
-
-
-
-def get_valid_moves_empty(board: Board, row: int, col: int) -> list[Position]:
+def get_valid_moves_empty(*args, **kwargs) -> list[Position]:
     print("!EMPTY!")
     return []
+
 
 #### TO REFACTOR
 def get_valid_moves_pawn(board: Board, row: int, col: int) -> list[Position]:
@@ -143,19 +169,16 @@ def get_valid_moves_pawn(board: Board, row: int, col: int) -> list[Position]:
 
     piece = board.piece(row, col)
 
-    all_moves = {
-        "move fwd 1": (row + piece.dir, col),
-        "move fwd 2": (row + piece.dir * 2, col),
-        "capture left": (row + piece.dir, col - 1),
-        "capture right": (row + piece.dir, col + 1),
-    }
-    valid_moves = [move for move in all_moves.values() if valid(board, *move)]
+    valid_moves = [
+        move.move_to
+        for move in Move.pincer(board, (row, col))
+        + Move.empassant(board, (row, col))
+        + Move.front_short(board, (row, col))
+        + Move.front_long(board, (row, col))
+        if move.valid
+    ]
 
-    print(
-        f"{piece.type.value}\t{valid_moves=}"
-        if valid_moves
-        else f"!NO VALID {piece.type.value} MOVES!"
-    )
+    print_valid_moves(valid_moves, piece)
     return valid_moves
 
 
@@ -165,15 +188,15 @@ def get_valid_moves_rook(board: Board, row: int, col: int) -> list[Position]:
         return []
     piece = board.piece(row, col)
 
-    valid_moves = [move.move_to for move in Move.create_perp_list(board, (row, col)) if move.valid]
+    valid_moves = [
+        move.move_to for move in Move.perpendiculars(board, (row, col)) if move.valid
+    ]
 
-    print(
-        f"{piece.type.value}\t{valid_moves=}"
-        if valid_moves
-        else f"!NO VALID {piece.type.value} MOVES!"
-    )
+    print_valid_moves(valid_moves, piece)
     return valid_moves
 
+
+## TODO: Root remove mechanism, hence all these return list[Move], use Move information to do UI change
 #### TO REFACTOR
 def get_valid_moves_knight(board: Board, row: int, col: int) -> list[Position]:
     if board.piece(row, col).color != board.color_turn:
@@ -181,14 +204,11 @@ def get_valid_moves_knight(board: Board, row: int, col: int) -> list[Position]:
         return []
     piece = board.piece(row, col)
 
-    all_moves = {f"lshp {move}": move for move in generate_moves_lshape(row, col)}
-    valid_moves = [move for move in all_moves.values() if valid(board, *move)]
+    valid_moves = [
+        move.move_to for move in Move.lshapes(board, (row, col)) if move.valid
+    ]
 
-    print(
-        f"{piece.type.value}\t{valid_moves=}"
-        if valid_moves
-        else f"!NO VALID {piece.type.value} MOVES!"
-    )
+    print_valid_moves(valid_moves, piece)
     return valid_moves
 
 
@@ -198,13 +218,11 @@ def get_valid_moves_bishop(board: Board, row: int, col: int) -> list[Position]:
         return []
     piece = board.piece(row, col)
 
-    valid_moves = [move.move_to for move in Move.create_diag_list(board, (row, col)) if move.valid]
+    valid_moves = [
+        move.move_to for move in Move.diagonals(board, (row, col)) if move.valid
+    ]
 
-    print(
-        f"{piece.type.value}\t{valid_moves=}"
-        if valid_moves
-        else f"!NO VALID {piece.type.value} MOVES!"
-    )
+    print_valid_moves(valid_moves, piece)
     return valid_moves
 
 
@@ -214,13 +232,14 @@ def get_valid_moves_queen(board: Board, row: int, col: int) -> list[Position]:
         return []
     piece = board.piece(row, col)
 
-    valid_moves = [move.move_to for move in Move.create_diag_list(board, (row, col)) + Move.create_perp_list(board, (row, col)) if move.valid]
+    valid_moves = [
+        move.move_to
+        for move in Move.diagonals(board, (row, col))
+        + Move.perpendiculars(board, (row, col))
+        if move.valid
+    ]
 
-    print(
-        f"{piece.type.value}\t{valid_moves=}"
-        if valid_moves
-        else f"!NO VALID {piece.type.value} MOVES!"
-    )
+    print_valid_moves(valid_moves, piece)
     return valid_moves
 
 
@@ -230,13 +249,15 @@ def get_valid_moves_king(board: Board, row: int, col: int) -> list[Position]:
         return []
     piece = board.piece(row, col)
 
-    valid_moves = [move.move_to for move in Move.create_diag_list(board, (row, col), 1) + Move.create_perp_list(board, (row, col), 1) if move.valid]
+    valid_moves = [
+        move.move_to
+        for move in Move.diagonals(board, (row, col), 1)
+        + Move.perpendiculars(board, (row, col), 1)
+        if move.valid
+    ]
 
-    print(
-        f"{piece.type.value}\t{valid_moves=}"
-        if valid_moves
-        else f"!NO VALID {piece.type.value} MOVES!"
-    )
+    print_valid_moves(valid_moves, piece)
+
     return valid_moves
 
 
