@@ -9,6 +9,7 @@ import numpy as np
 from .piece import COLOR_STR, Piece, PieceColor, PieceType
 from .types import Position
 
+
 class Board(Protocol):
     @property
     def color_turn(self) -> PieceColor:
@@ -99,7 +100,7 @@ class Move:
         return [F1]
 
     @classmethod
-    def front_long(cls, board, move_from) -> list[Self]:
+    def front_long(cls, board, move_from: Position) -> list[Self]:
         # does not allow capture
         row, col = move_from
         dir = board.piece(move_from).dir
@@ -136,7 +137,6 @@ class Checks:
     @staticmethod
     def no_obstruction(board: Board, move_from: Position, move_to: Position) -> bool:
         ...
-
 
 
 def not_targetted(board: Board, pos: Position) -> bool:
@@ -202,9 +202,7 @@ def get_valid_moves_knight(board: Board, pos: Position) -> list[Position]:
         return []
     piece = board.piece(pos)
 
-    valid_moves = [
-        move.move_to for move in Move.lshapes(board, (pos)) if move.valid
-    ]
+    valid_moves = [move.move_to for move in Move.lshapes(board, (pos)) if move.valid]
 
     print_valid_moves(valid_moves, piece)
     return valid_moves
@@ -216,9 +214,7 @@ def get_valid_moves_bishop(board: Board, pos: Position) -> list[Position]:
         return []
     piece = board.piece(pos)
 
-    valid_moves = [
-        move.move_to for move in Move.diagonals(board, (pos)) if move.valid
-    ]
+    valid_moves = [move.move_to for move in Move.diagonals(board, (pos)) if move.valid]
 
     print_valid_moves(valid_moves, piece)
     return valid_moves
@@ -232,8 +228,7 @@ def get_valid_moves_queen(board: Board, pos: Position) -> list[Position]:
 
     valid_moves = [
         move.move_to
-        for move in Move.diagonals(board, (pos))
-        + Move.perpendiculars(board, (pos))
+        for move in Move.diagonals(board, (pos)) + Move.perpendiculars(board, (pos))
         if move.valid
     ]
 
