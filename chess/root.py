@@ -18,6 +18,7 @@ class Root(Tk):
         super().__init__()
         self.imgs = []
         self.theme = theme
+
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
 
@@ -36,24 +37,24 @@ class Root(Tk):
     # account for empassant
     def move_piece(
         self,
-        pos_from: Position,
-        pos_to: Position,
-        capture_at: Position | None=None,
-        empassat_target: Position | None = None,
+        _from: Position,
+        _to: Position,
+        _capture: Position | None = None,
+        enpassant_target: Position | None = None,
     ) -> None:
-        piece = self.board.piece(pos_from)
+        piece = self.board.piece(_from)
 
-        self.board.remove(pos_from)
-        self.refresh_piece(pos_from)
+        self.board.remove(_from)
+        self.refresh_piece(_from)
 
-        self.board.place(Piece(pos_to, piece.color, piece.type))
-        self.refresh_piece(pos_to)
+        self.board.place(Piece(_to, piece.color, piece.type))
+        self.refresh_piece(_to)
 
-        if capture_at and capture_at != pos_to:
-            self.board.remove(capture_at)
-            self.refresh_piece(capture_at)
+        if _capture and _capture != _to:
+            self.board.remove(_capture)
+            self.refresh_piece(_capture)
 
-        self.board.empassat_target = empassat_target
+        self.board.enpassant_target = enpassant_target
 
         self.board.fifty_move_counter += 1
         self.board.toggle_color_turn()
@@ -64,7 +65,7 @@ class Root(Tk):
             if not valid_moves:
                 return
             move = choice(valid_moves)
-            self.move_piece(pos, move.move_to, move.capture_at, move.empassat_target)
+            self.move_piece(pos, move._to, move._capture, move.enpassant_target)
 
         return btn_cmd
 
