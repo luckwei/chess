@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
 from typing import Literal
-
+from .types import Position
 
 class PieceType(StrEnum):
     EMPTY = auto()
@@ -49,8 +49,7 @@ COLOR_STR: dict[PieceColor, str] = {
 
 @dataclass
 class Piece:
-    row: int
-    col: int
+    pos: Position
     color: PieceColor = PieceColor.NONE
     type: PieceType = PieceType.EMPTY
 
@@ -65,7 +64,7 @@ class Piece:
 
     @property
     def square_color(self) -> int:
-        return (self.row + self.col) % 2
+        return sum(self.pos) % 2
 
     def __str__(self):
         return PIECE_STR[self.type][self.color.value]

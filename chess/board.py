@@ -8,17 +8,17 @@ from .move import MOVE_CALCULATORS, Position
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 
-Grid = dict[Position, Piece]
+_Grid = dict[Position, Piece]
 
 
-def empty_board() -> Grid:
-    return {pos: Piece(*pos) for pos in product(range(8), range(8))}
+def empty_board() -> _Grid:
+    return {pos: Piece(pos) for pos in product(range(8), repeat=2)}
 
 
 @dataclass
 class Board:
     theme: tuple[str, str] = THEME.RED
-    pieces: Grid = field(init=False, default_factory=empty_board)
+    pieces: _Grid = field(init=False, default_factory=empty_board)
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
 
     def __post_init__(self):
@@ -33,14 +33,14 @@ class Board:
 
     def update_from_fen(self, fen: str = Setup.START):
         config, *_ = fen.replace("/", "").split(" ")
-
+        #change to string loop
         for i in range(1, 9):
             config = config.replace(str(i), " " * i)
         for i, char in enumerate(config):
             if char == " ":
                 continue
             self.place(
-                Piece(*divmod(i, 8), PieceColor(char.islower()), FEN_MAP[char.lower()])
+                Piece(divmod(i, 8), PieceColor(char.islower()), FEN_MAP[char.lower()])
             )
 
     def find_king(self, color: PieceColor) -> Piece:
@@ -52,8 +52,8 @@ class Board:
             )
         )
 
-    def get_valid_moves(self, row: int, col: int) -> list[Position]:
-        return MOVE_CALCULATORS[self.piece(row, col).type](self, row, col)
+    def get_valid_moves(self, pos: Position) -> list[Position]:
+        return MOVE_CALCULATORS[self.piece(pos).type](self, pos)
 
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
@@ -61,10 +61,10 @@ class Board:
         return "\n".join(rows)
 
     def place(self, piece: Piece):
-        self.pieces[(piece.row, piece.col)] = piece
+        self.pieces[piece.pos] = piece
 
-    def piece(self, row: int, col: int) -> Piece:
-        return self.pieces[(row, col)]
+    def piece(self, pos: Position) -> Piece:
+        return self.pieces[pos]
 
-    def empty(self, row: int, col: int) -> bool:
-        return self.piece(row, col).type == PieceType.EMPTY
+    def empty(self, pos: Position) -> bool:
+        return self.piece(pos).type == PieceType.EMPTY

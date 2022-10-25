@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import product
 from typing import Callable, Protocol, Self
 
 import numpy as np
 
 from .piece import COLOR_STR, Piece, PieceColor, PieceType
-
-Position = tuple[int, int]
-
+from .types import Position
 
 class Board(Protocol):
     @property
     def color_turn(self) -> PieceColor:
         ...
 
-    def piece(self, row, col) -> Piece:
+    def piece(self, pos: Position) -> Piece:
         ...
 
     def find_king(self, color: PieceColor) -> Piece:
@@ -73,7 +71,7 @@ class Move:
     @classmethod
     def pincer(cls, board: Board, move_from: Position) -> list[Self]:
         row, col = move_from
-        dir = board.piece(row, col).dir
+        dir = board.piece(move_from).dir
         L = cls(board, move_from, move_to := (row + dir, col + 1), move_to)
         R = cls(board, move_from, move_to := (row + dir, col - 1), move_to)
 
@@ -82,7 +80,7 @@ class Move:
     @classmethod
     def empassant(cls, board: Board, move_from: Position) -> list[Self]:
         row, col = move_from
-        dir = board.piece(row, col).dir
+        dir = board.piece(move_from).dir
         # implement board last move to check whether it was a jump long jump
         # maybe also implement piece last move to check if pawn at the side was a long jump
         L = cls(board, move_from, (row + dir, col + 1), (row, col + 1))
@@ -95,7 +93,7 @@ class Move:
         # does not allow capture
         # put condition here
         row, col = move_from
-        dir = board.piece(row, col).dir
+        dir = board.piece(move_from).dir
 
         F1 = cls(board, move_from, (row + dir, col), None)
         return [F1]
@@ -104,35 +102,36 @@ class Move:
     def front_long(cls, board, move_from) -> list[Self]:
         # does not allow capture
         row, col = move_from
-        dir = board.piece(row, col).dir
+        dir = board.piece(move_from).dir
 
         F2 = cls(board, move_from, (row + 2 * dir, col), None)
         return [F2]
 
+    # Valid should not be part of piece as property, either external or part of class methods
     @property
     def valid(self) -> bool:
         return (
-            Checks.in_grid(*self.move_to)
-            and Checks.not_own_color(self.board, *self.move_to)
-            # either king not checked or king will not be checked, create OR condition TODO
+            Checks.in_grid(self.move_to)
+            and Checks.not_own_color(self.board, self.move_to)
             and Checks.king_not_checked(self.board)
+            # either king not checked or king will not be checked, create OR condition TODO
         )
 
 
 class Checks:
     @staticmethod
-    def in_grid(row: int, col: int) -> bool:
-        return max(row, col) <= 7 and min(row, col) >= 0
+    def in_grid(pos: Position) -> bool:
+        return max(pos) <= 7 and min(pos) >= 0
 
     @staticmethod
-    def not_own_color(board: Board, row: int, col: int) -> bool:
-        return board.piece(row, col).color != board.color_turn
+    def not_own_color(board: Board, pos: Position) -> bool:
+        return board.piece(pos).color != board.color_turn
 
     @staticmethod
     def king_not_checked(board: Board) -> bool:
         # check for enemy fire in king's current psotion
         king = board.find_king(board.color_turn)
-        return not_targetted(board, king.row, king.col)
+        return not_targetted(board, king.pos)
 
     @staticmethod
     def no_obstruction(board: Board, move_from: Position, move_to: Position) -> bool:
@@ -140,7 +139,7 @@ class Checks:
 
 
 
-def not_targetted(board: Board, row: int, col: int) -> bool:
+def not_targetted(board: Board, pos: Position) -> bool:
     # check for enemy fire
     # bishops and queens on the diag, rook on the verts,
     # pawns on the near diags
@@ -161,20 +160,19 @@ def get_valid_moves_empty(*args, **kwargs) -> list[Position]:
     return []
 
 
-#### TO REFACTOR
-def get_valid_moves_pawn(board: Board, row: int, col: int) -> list[Position]:
-    if board.piece(row, col).color != board.color_turn:
+def get_valid_moves_pawn(board: Board, pos: Position) -> list[Position]:
+    if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
 
-    piece = board.piece(row, col)
+    piece = board.piece(pos)
 
     valid_moves = [
         move.move_to
-        for move in Move.pincer(board, (row, col))
-        + Move.empassant(board, (row, col))
-        + Move.front_short(board, (row, col))
-        + Move.front_long(board, (row, col))
+        for move in Move.pincer(board, (pos))
+        + Move.empassant(board, (pos))
+        + Move.front_short(board, (pos))
+        + Move.front_long(board, (pos))
         if move.valid
     ]
 
@@ -182,14 +180,14 @@ def get_valid_moves_pawn(board: Board, row: int, col: int) -> list[Position]:
     return valid_moves
 
 
-def get_valid_moves_rook(board: Board, row: int, col: int) -> list[Position]:
-    if board.piece(row, col).color != board.color_turn:
+def get_valid_moves_rook(board: Board, pos: Position) -> list[Position]:
+    if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(row, col)
+    piece = board.piece(pos)
 
     valid_moves = [
-        move.move_to for move in Move.perpendiculars(board, (row, col)) if move.valid
+        move.move_to for move in Move.perpendiculars(board, (pos)) if move.valid
     ]
 
     print_valid_moves(valid_moves, piece)
@@ -198,44 +196,44 @@ def get_valid_moves_rook(board: Board, row: int, col: int) -> list[Position]:
 
 ## TODO: Root remove mechanism, hence all these return list[Move], use Move information to do UI change
 #### TO REFACTOR
-def get_valid_moves_knight(board: Board, row: int, col: int) -> list[Position]:
-    if board.piece(row, col).color != board.color_turn:
+def get_valid_moves_knight(board: Board, pos: Position) -> list[Position]:
+    if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(row, col)
+    piece = board.piece(pos)
 
     valid_moves = [
-        move.move_to for move in Move.lshapes(board, (row, col)) if move.valid
+        move.move_to for move in Move.lshapes(board, (pos)) if move.valid
     ]
 
     print_valid_moves(valid_moves, piece)
     return valid_moves
 
 
-def get_valid_moves_bishop(board: Board, row: int, col: int) -> list[Position]:
-    if board.piece(row, col).color != board.color_turn:
+def get_valid_moves_bishop(board: Board, pos: Position) -> list[Position]:
+    if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(row, col)
+    piece = board.piece(pos)
 
     valid_moves = [
-        move.move_to for move in Move.diagonals(board, (row, col)) if move.valid
+        move.move_to for move in Move.diagonals(board, (pos)) if move.valid
     ]
 
     print_valid_moves(valid_moves, piece)
     return valid_moves
 
 
-def get_valid_moves_queen(board: Board, row: int, col: int) -> list[Position]:
-    if board.piece(row, col).color != board.color_turn:
+def get_valid_moves_queen(board: Board, pos: Position) -> list[Position]:
+    if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(row, col)
+    piece = board.piece(pos)
 
     valid_moves = [
         move.move_to
-        for move in Move.diagonals(board, (row, col))
-        + Move.perpendiculars(board, (row, col))
+        for move in Move.diagonals(board, (pos))
+        + Move.perpendiculars(board, (pos))
         if move.valid
     ]
 
@@ -243,16 +241,16 @@ def get_valid_moves_queen(board: Board, row: int, col: int) -> list[Position]:
     return valid_moves
 
 
-def get_valid_moves_king(board: Board, row: int, col: int) -> list[Position]:
-    if board.piece(row, col).color != board.color_turn:
+def get_valid_moves_king(board: Board, pos: Position) -> list[Position]:
+    if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(row, col)
+    piece = board.piece(pos)
 
     valid_moves = [
         move.move_to
-        for move in Move.diagonals(board, (row, col), 1)
-        + Move.perpendiculars(board, (row, col), 1)
+        for move in Move.diagonals(board, (pos), 1)
+        + Move.perpendiculars(board, (pos), 1)
         if move.valid
     ]
 
@@ -261,7 +259,7 @@ def get_valid_moves_king(board: Board, row: int, col: int) -> list[Position]:
     return valid_moves
 
 
-ValidMoveCalculator = Callable[[Board, int, int], list[Position]]
+ValidMoveCalculator = Callable[[Board, Position], list[Position]]
 
 MOVE_CALCULATORS: dict[PieceType, ValidMoveCalculator] = {
     PieceType.EMPTY: get_valid_moves_empty,
