@@ -16,7 +16,7 @@ from .types import ColorPair, Position
 class Root(Tk):
     def __init__(self, theme: ColorPair = THEME.RED) -> None:
         super().__init__()
-        self.images = []
+        self.imgs = []
         self.theme = theme
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
@@ -24,6 +24,14 @@ class Root(Tk):
         # Bind event logic
         self.bind("<KeyPress>", self.keypress_handler, add=True)
         self.reset_board()
+
+    def keypress_handler(self, event: Event) -> None:
+        print(event)
+        match event.char:
+            case "\x1b":
+                self.quit()
+            case "q":
+                self.reset_board()
 
     # account for empassant
     def capture(self, pos_from: Position, pos_to: Position) -> None:
@@ -34,14 +42,6 @@ class Root(Tk):
         self.refresh_piece(pos_to)
         self.board.toggle_color_turn()
 
-    def keypress_handler(self, event: Event) -> None:
-        print(event)
-        match event.char:
-            case "\x1b":
-                self.quit()
-            case "q":
-                self.reset_board()
-
     def reset_board(self) -> None:
         self.board = Board(self.theme)
         self.refresh_board()
@@ -49,23 +49,24 @@ class Root(Tk):
     def refresh_piece(self, pos: Position) -> None:
         [slave.destroy() for slave in self.grid_slaves(*pos)]
         piece = self.board.piece(pos)
-        bg = self.theme[piece.square_color]
+        bg = self.theme[sum(pos) % 2]
 
-        image = SvgImage(
+        img = SvgImage(
             file=f"res/{piece.type}_{COLOR_STR[piece.color]}.svg",
             scaletowidth=PIECE_SIZE,
         )
-        self.images.append(image)
-
+        self.imgs.append(img)
+        # Might one day want to append to board for garbage collection
+        command = self.calibrate_btn_cmd(pos)
         Button(
             self,
-            image=image,
+            image=img,
             bg=bg,
             activebackground=bg,
             bd=0,
             height=TILE_SIZE,
             width=TILE_SIZE,
-            command=self.calibrate_button_function(pos),
+            command=command,
         ).grid(row=pos[0], column=pos[1])
 
     # iterate over board
@@ -74,11 +75,11 @@ class Root(Tk):
             self.refresh_piece(pos)
 
     # account for empassant
-    def calibrate_button_function(self, pos: Position) -> Callable[[], None]:
-        def button_function() -> None:
+    def calibrate_btn_cmd(self, pos: Position) -> Callable[[], None]:
+        def btn_cmd() -> None:
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 return
             self.capture(pos, choice(valid_moves))
 
-        return button_function
+        return btn_cmd

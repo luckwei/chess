@@ -30,7 +30,7 @@ class Move:
     capture_at: Position | None
 
     @classmethod
-    def diagonals(cls, board: Board, move_from: Position, n=7) -> list[Self]:
+    def diag(cls, board: Board, move_from: Position, n=7) -> list[Self]:
         row, col = move_from
         move_obj_list = []
         for i in range(1, n + 1):
@@ -44,7 +44,7 @@ class Move:
         return move_obj_list
 
     @classmethod
-    def perpendiculars(cls, board: Board, move_from: Position, n=7) -> list[Self]:
+    def perp(cls, board: Board, move_from: Position, n=7) -> list[Self]:
         row, col = move_from
         move_obj_list = []
         for i in range(1, n + 1):
@@ -165,18 +165,15 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Position]:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
 
-    piece = board.piece(pos)
+    all_moves = (
+        Move.pincer(board, pos)
+        + Move.empassant(board, pos)
+        + Move.front_short(board, pos)
+        + Move.front_long(board, pos)
+    )
+    valid_moves = [move.move_to for move in all_moves if move.valid]
 
-    valid_moves = [
-        move.move_to
-        for move in Move.pincer(board, (pos))
-        + Move.empassant(board, (pos))
-        + Move.front_short(board, (pos))
-        + Move.front_long(board, (pos))
-        if move.valid
-    ]
-
-    print_valid_moves(valid_moves, piece)
+    print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
@@ -184,13 +181,11 @@ def get_valid_moves_rook(board: Board, pos: Position) -> list[Position]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(pos)
 
-    valid_moves = [
-        move.move_to for move in Move.perpendiculars(board, (pos)) if move.valid
-    ]
+    all_moves = Move.perp(board, pos)
+    valid_moves = [move.move_to for move in Move.perp(board, pos) if move.valid]
 
-    print_valid_moves(valid_moves, piece)
+    print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
@@ -200,11 +195,10 @@ def get_valid_moves_knight(board: Board, pos: Position) -> list[Position]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(pos)
+    all_moves = Move.lshapes(board, pos)
+    valid_moves = [move.move_to for move in all_moves if move.valid]
 
-    valid_moves = [move.move_to for move in Move.lshapes(board, (pos)) if move.valid]
-
-    print_valid_moves(valid_moves, piece)
+    print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
@@ -212,11 +206,11 @@ def get_valid_moves_bishop(board: Board, pos: Position) -> list[Position]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(pos)
 
-    valid_moves = [move.move_to for move in Move.diagonals(board, (pos)) if move.valid]
+    all_moves = Move.diag(board, pos)
+    valid_moves = [move.move_to for move in all_moves if move.valid]
 
-    print_valid_moves(valid_moves, piece)
+    print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
@@ -224,15 +218,11 @@ def get_valid_moves_queen(board: Board, pos: Position) -> list[Position]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(pos)
 
-    valid_moves = [
-        move.move_to
-        for move in Move.diagonals(board, (pos)) + Move.perpendiculars(board, (pos))
-        if move.valid
-    ]
+    all_moves = Move.diag(board, pos) + Move.perp(board, pos)
+    valid_moves = [move.move_to for move in all_moves if move.valid]
 
-    print_valid_moves(valid_moves, piece)
+    print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 
@@ -240,17 +230,11 @@ def get_valid_moves_king(board: Board, pos: Position) -> list[Position]:
     if board.piece(pos).color != board.color_turn:
         print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
         return []
-    piece = board.piece(pos)
 
-    valid_moves = [
-        move.move_to
-        for move in Move.diagonals(board, (pos), 1)
-        + Move.perpendiculars(board, (pos), 1)
-        if move.valid
-    ]
+    all_moves = Move.diag(board, pos, 1) + Move.perp(board, pos, 1)
+    valid_moves = [move.move_to for move in all_moves if move.valid]
 
-    print_valid_moves(valid_moves, piece)
-
+    print_valid_moves(valid_moves, board.piece(pos))
     return valid_moves
 
 

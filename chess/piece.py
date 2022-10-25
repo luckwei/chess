@@ -62,10 +62,6 @@ class Piece:
                 return 1
         return 0
 
-    @property
-    def square_color(self) -> int:
-        return sum(self.pos) % 2
-
     def __str__(self):
         return PIECE_STR[self.type][self.color.value]
 
