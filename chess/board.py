@@ -184,14 +184,15 @@ class Move:
         return (
             Checks.to_pos_in_grid(self)
             and Checks.to_pos_empty_or_not_same_color(self)
-            and Checks.king_not_checked_on_next_move(self)  # after
+            and Checks.king_not_checked_on_next_move(self)
+            and Checks.no_obstruction(self)
             and Checks.is_color_turn(self)
         )
 
 
 def print_valid_moves(moves: list[Move], piece: Piece):
     valid_moves = [move._to for move in moves]
-    print(f"{piece}\t{valid_moves=}" if valid_moves else f"!NO VALID {piece} MOVES!")
+    print(f"{piece}\t{valid_moves=}" if valid_moves else f"!NO VALID {piece}  MOVES!")
 
 
 def get_valid_moves_empty(*args, **kwargs) -> list[Move]:
@@ -202,9 +203,6 @@ def get_valid_moves_empty(*args, **kwargs) -> list[Move]:
 def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
     """Priority: Empassat, Pincer, Long, Short"""
     piece = board.piece(pos)
-    if piece.color != board.color_turn:
-        print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
-        return []
 
     enpassant = [
         move
@@ -243,9 +241,6 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
 
 def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
-    if board.piece(pos).color != board.color_turn:
-        print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
-        return []
 
     all_moves = Move.perp(board, piece, pos)
     valid_moves = [move for move in Move.perp(board, piece, pos) if move.valid]
@@ -256,9 +251,7 @@ def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
 
 def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
-    if board.piece(pos).color != board.color_turn:
-        print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
-        return []
+
     all_moves = Move.lshapes(board, piece, pos)
     valid_moves = [move for move in all_moves if move.valid]
 
@@ -268,9 +261,6 @@ def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
 
 def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
-    if board.piece(pos).color != board.color_turn:
-        print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
-        return []
 
     all_moves = Move.diag(board, piece, pos)
     valid_moves = [move for move in all_moves if move.valid]
@@ -281,9 +271,6 @@ def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
 
 def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
-    if board.piece(pos).color != board.color_turn:
-        print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
-        return []
 
     all_moves = Move.diag(board, piece, pos) + Move.perp(board, piece, pos)
     valid_moves = [move for move in all_moves if move.valid]
@@ -294,9 +281,6 @@ def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
 
 def get_valid_moves_king(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
-    if board.piece(pos).color != board.color_turn:
-        print(f"!{COLOR_STR[board.color_turn]}'s TURN!")
-        return []
 
     all_moves = Move.diag(board, piece, pos, 1) + Move.perp(board, piece, pos, 1)
     valid_moves = [move for move in all_moves if move.valid]
@@ -386,5 +370,28 @@ class Checks:
 
     @staticmethod
     def no_obstruction(move: Move) -> bool:
-        
+        x1, y1 = move._from
+        x2, y2 = move._to
+        if move.piece.type == PieceType.KNIGHT:
+            return True
+        # adjacent piece has no obstruction
+        if max(abs(x2 - x1), abs(y2 - y1)) == 1:
+            return True
+        # perp move: same row
+        if x1 == x2:
+            for y in range(min(y1, y2) + 1, max(y1, y2)):
+                if move.board.piece((x1, y)):
+                    return False
+        # perp move: same column
+        if y1 == y2:
+            for x in range(min(x1, x2) + 1, max(x1, x2)):
+                if move.board.piece((x, y1)):
+                    return False
+        # diag move
+        if abs(y2 - y1) == abs(x2 - x1):
+            X = range(x1, x2, -1 if x2 < x1 else 1)
+            Y = range(y1, y2, -1 if y2 < y1 else 1)
+            for pos in zip(X, Y):
+                if pos != move._from and move.board.piece(pos):
+                    return False
         return True
