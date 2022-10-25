@@ -20,13 +20,19 @@ class PieceColor(Enum):
     BLACK = 1
 
 
-FEN_MAP: dict[str, PieceType] = {
-    "p": PieceType.PAWN,
-    "n": PieceType.KNIGHT,
-    "b": PieceType.BISHOP,
-    "r": PieceType.ROOK,
-    "q": PieceType.QUEEN,
-    "k": PieceType.KING,
+FEN_MAP: dict[str, tuple[PieceColor, PieceType]] = {
+    "p": (PieceColor.BLACK, PieceType.PAWN),
+    "n": (PieceColor.BLACK, PieceType.KNIGHT),
+    "b": (PieceColor.BLACK, PieceType.BISHOP),
+    "r": (PieceColor.BLACK, PieceType.ROOK),
+    "q": (PieceColor.BLACK, PieceType.QUEEN),
+    "k": (PieceColor.BLACK, PieceType.KING),
+    "P": (PieceColor.WHITE, PieceType.PAWN),
+    "N": (PieceColor.WHITE, PieceType.KNIGHT),
+    "B": (PieceColor.WHITE, PieceType.BISHOP),
+    "R": (PieceColor.WHITE, PieceType.ROOK),
+    "Q": (PieceColor.WHITE, PieceType.QUEEN),
+    "K": (PieceColor.WHITE, PieceType.KING),
 }
 
 

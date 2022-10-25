@@ -20,6 +20,8 @@ class Board:
     theme: tuple[str, str] = THEME.RED
     pieces: _Grid = field(init=False, default_factory=empty_board)
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
+    # last played for empassat: record down pawn possition if double square
+    # REcord down 50 move rule
 
     def __post_init__(self):
         self.update_from_fen(Setup.START)
@@ -41,7 +43,7 @@ class Board:
         for i, p in enumerate(config):
             if p == " ":
                 continue
-            self.place(Piece(divmod(i, 8), PieceColor(p.islower()), FEN_MAP[p.lower()]))
+            self.place(Piece(divmod(i, 8), *FEN_MAP[p]))
 
     def find_king(self, color: PieceColor) -> Piece:
         return next(
