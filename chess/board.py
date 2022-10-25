@@ -234,38 +234,42 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
         return pincer
     if front_long:
         return front_long
-    if front_short:
-        return front_short
-    return []
+    return front_short
 
 
 def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    all_moves = Move.perp(board, piece, pos)
     valid_moves = [move for move in Move.perp(board, piece, pos) if move.valid]
 
-    print_valid_moves(valid_moves, piece)
+    capture_moves = [move for move in valid_moves if move.to_piece]
+
+    if capture_moves:
+        return capture_moves
     return valid_moves
 
 
 def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    all_moves = Move.lshapes(board, piece, pos)
-    valid_moves = [move for move in all_moves if move.valid]
+    valid_moves = [move for move in Move.lshapes(board, piece, pos) if move.valid]
+    capture_moves = [move for move in valid_moves if move.to_piece]
 
-    print_valid_moves(valid_moves, piece)
+    if capture_moves:
+        return capture_moves
+
     return valid_moves
 
 
 def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    all_moves = Move.diag(board, piece, pos)
-    valid_moves = [move for move in all_moves if move.valid]
+    valid_moves = [move for move in Move.diag(board, piece, pos) if move.valid]
+    capture_moves = [move for move in valid_moves if move.to_piece]
 
-    print_valid_moves(valid_moves, piece)
+    if capture_moves:
+        return capture_moves
+
     return valid_moves
 
 
@@ -274,8 +278,10 @@ def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
 
     all_moves = Move.diag(board, piece, pos) + Move.perp(board, piece, pos)
     valid_moves = [move for move in all_moves if move.valid]
+    capture_moves = [move for move in valid_moves if move.to_piece]
 
-    print_valid_moves(valid_moves, piece)
+    if capture_moves:
+        return capture_moves
     return valid_moves
 
 
@@ -284,10 +290,14 @@ def get_valid_moves_king(board: Board, pos: Position) -> list[Move]:
 
     all_moves = Move.diag(board, piece, pos, 1) + Move.perp(board, piece, pos, 1)
     valid_moves = [move for move in all_moves if move.valid]
+    capture_moves = [move for move in valid_moves if move.to_piece]
 
-    print_valid_moves(valid_moves, piece)
+    if capture_moves:
+        return capture_moves
     return valid_moves
 
+
+# Next calculate bloodthirstyness by distance from enemy king #Capture the weakest/strongest piece
 
 ValidMoveCalculator = Callable[[Board, Position], list[Move]]
 
@@ -300,8 +310,6 @@ MOVE_CALCULATORS: dict[PieceType, ValidMoveCalculator] = {
     PieceType.KING: get_valid_moves_king,
     PieceType.PAWN: get_valid_moves_pawn,
 }
-
-from .types import Position
 
 
 class PawnCheck:
