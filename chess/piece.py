@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum, auto
 from typing import Literal
 
 
-class PieceType(Enum):
-    EMPTY = "empty"
-    PAWN = "pawn"
-    ROOK = "rook"
-    KNIGHT = "knight"
-    BISHOP = "bishop"
-    QUEEN = "queen"
-    KING = "king"
-
+class PieceType(StrEnum):
+    EMPTY = auto()
+    PAWN = auto()
+    ROOK = auto()
+    KNIGHT = auto()
+    BISHOP = auto()
+    QUEEN = auto()
+    KING = auto()
 
 class PieceColor(Enum):
     NONE = -1
