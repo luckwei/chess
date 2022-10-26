@@ -10,18 +10,40 @@ from tksvg import SvgImage
 
 from .board import Board
 from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
-from .piece import Piece
+from .piece import Piece, PieceColor, PieceType
 from .types import ColorPair, Position
 
 
 class Root(Tk):
     def __init__(self, theme: ColorPair = THEME_RED) -> None:
         super().__init__()
-        # self.imgs = []
+
         self.theme = theme
 
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
+
+        type_color = [
+            (PieceType.EMPTY, PieceColor.NONE),
+            (PieceType.PAWN, PieceColor.BLACK),
+            (PieceType.KNIGHT, PieceColor.BLACK),
+            (PieceType.BISHOP, PieceColor.BLACK),
+            (PieceType.ROOK, PieceColor.BLACK),
+            (PieceType.QUEEN, PieceColor.BLACK),
+            (PieceType.KING, PieceColor.BLACK),
+            (PieceType.PAWN, PieceColor.WHITE),
+            (PieceType.KNIGHT, PieceColor.WHITE),
+            (PieceType.BISHOP, PieceColor.WHITE),
+            (PieceType.ROOK, PieceColor.WHITE),
+            (PieceType.QUEEN, PieceColor.WHITE),
+            (PieceType.KING, PieceColor.WHITE),
+        ]
+        self.IMG_DICT = {
+            (type, color): SvgImage(
+                file=f"res/{type}_{color}.svg", scaletowidth=PIECE_SIZE
+            )
+            for type, color in type_color
+        }
 
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
@@ -64,8 +86,8 @@ class Root(Tk):
     def reset_board(self) -> None:
         self.board = Board(self.theme)
         self.refresh_board()
-        
-    def destroy_btns(self, pos:Position|None = None) -> None:
+
+    def destroy_btns(self, pos: Position | None = None) -> None:
         [widget.destroy() for widget in self.grid_slaves(*pos if pos else (None, None))]
 
     def get_btn(self, pos: Position) -> Widget:
@@ -79,27 +101,21 @@ class Root(Tk):
 
     def refresh_piece(self, pos: Position, destroy=True) -> None:
         piece = self.board.piece(pos)
-        bg = self.theme[sum(pos) % 2]
-
-        img = SvgImage(
-            file=f"res/{piece.type}_{piece.color}.svg",
-            scaletowidth=PIECE_SIZE,
-        )
-        self.board.imgs.append(img)
         on_click, on_enter, on_exit = self.bind_factory(pos)
         button = Button(
             self,
-            image=img,
-            bg=bg,
+            image=self.IMG_DICT[(piece.type, piece.color)],
+            bg=self.theme[sum(pos) % 2],
             activebackground="white",
             bd=0,
             height=TILE_SIZE,
             width=TILE_SIZE,
             command=on_click,
         )
+
         button.bind("<Enter>", on_enter)
         button.bind("<Leave>", on_exit)
-        
+
         if destroy:
             self.destroy_btns(pos)
         button.grid(row=pos[0], column=pos[1])
