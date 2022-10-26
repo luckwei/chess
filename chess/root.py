@@ -9,16 +9,14 @@ from typing import Callable
 from tksvg import SvgImage
 
 from .board import Board
-from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
-from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
+from .constants import PIECE_SIZE, MAIN_THEME, TILE_SIZE
+from .piece import COLOR_TYPE, Piece, PIECE_VAL
 from .types import ColorPair, Position
 
 
 class Root(Tk):
-    def __init__(self, theme: ColorPair = THEME_RED) -> None:
+    def __init__(self) -> None:
         super().__init__()
-
-        self.theme = theme
 
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
@@ -46,7 +44,6 @@ class Root(Tk):
                 bd=0,
                 height=TILE_SIZE,
                 width=TILE_SIZE,
-                # command=on_click,
             )
             on_click, on_enter, on_exit = self.bind_factory(pos)
             button.bind("<ButtonRelease-1>", on_click)
@@ -55,7 +52,6 @@ class Root(Tk):
 
             button.grid(row=pos[0], column=pos[1])
 
-    # account for empassant
     def move_piece(
         self,
         _from: Position,
@@ -84,19 +80,18 @@ class Root(Tk):
         self.board.move_counter += 1
         if self.board.move_counter >= 20:
             print("20 moves since last capture or pawn move!")
-            ...  # draw! Ending game, check or checkmate
+            ...  # TODO:draw! Ending game, check or checkmate
 
         self.board.toggle_color_turn()
 
     def bg(self, pos: Position) -> str:
-        return self.theme[sum(pos) %2]
+        return MAIN_THEME[sum(pos) %2]
     
     def reset_board(self) -> None:
         self.board = Board()
         for pos in self.board.pieces:
             self.refresh_piece(pos)
 
-    # TODO: implement get item to take tiles
     def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
     
@@ -106,7 +101,7 @@ class Root(Tk):
     def refresh_piece(self, pos: Position) -> None:
         piece = self.board[pos]
         self.btn(pos)["image"] = self.IMG_DICT[(piece.type, piece.color)]
-    # TODO: deactivate tiles that cannot move
+
     def bind_factory(
         self, pos: Position
     ) -> tuple[Callable[[Event], None], Callable[[Event], None], Callable[[Event], None]]:
@@ -141,8 +136,6 @@ class Root(Tk):
             for move in valid_moves:
                 btn = self.btn(move._to)
                 btn["bg"] = "white"
-
-
 
         def on_exit(e: Event) -> None:
             if not self.board[pos]:
