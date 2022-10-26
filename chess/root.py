@@ -13,6 +13,22 @@ from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
 from .piece import Piece, PieceColor, PieceType
 from .types import ColorPair, Position
 
+type_color = [
+    (PieceType.EMPTY, PieceColor.NONE),
+    (PieceType.PAWN, PieceColor.BLACK),
+    (PieceType.KNIGHT, PieceColor.BLACK),
+    (PieceType.BISHOP, PieceColor.BLACK),
+    (PieceType.ROOK, PieceColor.BLACK),
+    (PieceType.QUEEN, PieceColor.BLACK),
+    (PieceType.KING, PieceColor.BLACK),
+    (PieceType.PAWN, PieceColor.WHITE),
+    (PieceType.KNIGHT, PieceColor.WHITE),
+    (PieceType.BISHOP, PieceColor.WHITE),
+    (PieceType.ROOK, PieceColor.WHITE),
+    (PieceType.QUEEN, PieceColor.WHITE),
+    (PieceType.KING, PieceColor.WHITE),
+]
+
 
 class Root(Tk):
     def __init__(self, theme: ColorPair = THEME_RED) -> None:
@@ -23,21 +39,6 @@ class Root(Tk):
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
 
-        type_color = [
-            (PieceType.EMPTY, PieceColor.NONE),
-            (PieceType.PAWN, PieceColor.BLACK),
-            (PieceType.KNIGHT, PieceColor.BLACK),
-            (PieceType.BISHOP, PieceColor.BLACK),
-            (PieceType.ROOK, PieceColor.BLACK),
-            (PieceType.QUEEN, PieceColor.BLACK),
-            (PieceType.KING, PieceColor.BLACK),
-            (PieceType.PAWN, PieceColor.WHITE),
-            (PieceType.KNIGHT, PieceColor.WHITE),
-            (PieceType.BISHOP, PieceColor.WHITE),
-            (PieceType.ROOK, PieceColor.WHITE),
-            (PieceType.QUEEN, PieceColor.WHITE),
-            (PieceType.KING, PieceColor.WHITE),
-        ]
         self.IMG_DICT = {
             (type, color): SvgImage(
                 file=f"res/{type}_{color}.svg", scaletowidth=PIECE_SIZE
@@ -48,8 +49,27 @@ class Root(Tk):
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
         self.bind("<q>", lambda e: self.reset_board())
-        self.reset_board()
 
+        self.setup_buttons()
+        self.reset_board()
+    def setup_buttons(self):
+        for pos in product(range(8), range(8)):
+            on_click, on_enter, on_exit = self.bind_factory(pos)
+
+            button = Button(
+                self,
+                bg=self.theme[sum(pos) % 2],
+                activebackground="white",
+                bd=0,
+                height=TILE_SIZE,
+                width=TILE_SIZE,
+                command=on_click,
+            )
+
+            button.bind("<Enter>", on_enter)
+            button.bind("<Leave>", on_exit)
+
+            button.grid(row=pos[0], column=pos[1])
     # account for empassant
     def move_piece(
         self,
@@ -57,6 +77,7 @@ class Root(Tk):
         _to: Position,
         _extra_capture: Position | None = None,
         enpassant_target: Position | None = None,
+
         reset_counter: bool = False,
     ) -> None:
         piece = self.board.piece(_from)
@@ -78,47 +99,23 @@ class Root(Tk):
 
         self.board.move_counter += 1
         if self.board.move_counter >= 20:
-            print("20!")
+            print("20 moves since last capture or pawn move!")
             ...  # draw! Ending game, check or checkmate
 
         self.board.toggle_color_turn()
 
     def reset_board(self) -> None:
         self.board = Board(self.theme)
-        self.refresh_board()
+        for pos in self.board.pieces:
+            self.refresh_piece(pos)
 
-    def destroy_btns(self, pos: Position | None = None) -> None:
-        [widget.destroy() for widget in self.grid_slaves(*pos if pos else (None, None))]
-
-    def get_btn(self, pos: Position) -> Widget:
+    def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
         # iterate over board
 
-    def refresh_board(self):
-        self.destroy_btns()
-        for pos in product(range(8), repeat=2):
-            self.refresh_piece(pos, destroy=False)
-
-    def refresh_piece(self, pos: Position, destroy=True) -> None:
+    def refresh_piece(self, pos: Position) -> None:
         piece = self.board.piece(pos)
-        on_click, on_enter, on_exit = self.bind_factory(pos)
-        button = Button(
-            self,
-            image=self.IMG_DICT[(piece.type, piece.color)],
-            bg=self.theme[sum(pos) % 2],
-            activebackground="white",
-            bd=0,
-            height=TILE_SIZE,
-            width=TILE_SIZE,
-            command=on_click,
-        )
-
-        button.bind("<Enter>", on_enter)
-        button.bind("<Leave>", on_exit)
-
-        if destroy:
-            self.destroy_btns(pos)
-        button.grid(row=pos[0], column=pos[1])
+        self.btn(pos)["image"] = self.IMG_DICT[(piece.type, piece.color)]
 
     def bind_factory(
         self, pos: Position
