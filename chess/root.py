@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from itertools import product
+from itertools import chain, product
+import itertools
 from random import choice
 from tkinter import Button, Event, Tk
 from typing import Callable
@@ -41,6 +42,7 @@ class Root(Tk):
         _to: Position,
         _extra_capture: Position | None = None,
         enpassant_target: Position | None = None,
+        reset_counter: bool = False,
     ) -> None:
         piece = self.board.piece(_from)
 
@@ -56,32 +58,20 @@ class Root(Tk):
 
         self.board.enpassant_target = enpassant_target
 
-        # TODO:add additional flag: reset when pawn moves is made or capture
+        if reset_counter:
+            self.board.move_counter = 0
 
-        if reset:=True:
-            self.board.fifty_move_counter = 0
-        self.board.fifty_move_counter += 1
-        if self.board.fifty_move_counter >= 50:
-            ... #draw! Ending game, check or checkmate
-        
+        self.board.move_counter += 1
+        if self.board.move_counter >= 50:
+            ...  # draw! Ending game, check or checkmate
+
         self.board.toggle_color_turn()
-
-    def calibrate_btn_cmd(self, pos: Position) -> Callable[[], None]:
-        def btn_cmd() -> None:
-            valid_moves = self.board.get_valid_moves(pos)
-            if not valid_moves:
-                return
-            move = choice(valid_moves)
-            self.move_piece(pos, move._to, move._extra_capture, move.enpassant_target)
-
-        return btn_cmd
 
     def reset_board(self) -> None:
         self.board = Board(self.theme)
         self.refresh_board()
 
     def refresh_piece(self, pos: Position) -> None:
-        [slave.destroy() for slave in self.grid_slaves(*pos)]
         piece = self.board.piece(pos)
         bg = self.theme[sum(pos) % 2]
 
@@ -91,17 +81,66 @@ class Root(Tk):
         )
         self.imgs.append(img)
         # Might one day want to append to board for garbage collection
-        command = self.calibrate_btn_cmd(pos)
-        Button(
+        [slave.destroy() for slave in self.grid_slaves(*pos)]
+        btn_cmd, on_enter, on_exit = self.bind_factory(pos)
+        button = Button(
             self,
             image=img,
             bg=bg,
-            activebackground=bg,
+            activebackground="white",
             bd=0,
             height=TILE_SIZE,
             width=TILE_SIZE,
-            command=command,
-        ).grid(row=pos[0], column=pos[1])
+            command=btn_cmd,
+        )
+        button.bind("<Enter>", on_enter)
+        button.bind("<Leave>", on_exit)
+        button.grid(row=pos[0], column=pos[1])
+        # TODO: Implement hover for button
+    
+    def bind_factory(self, pos: Position) -> tuple[Callable[[], None],Callable[[Event], None], Callable[[Event], None]]:
+        def btn_cmd() -> None:
+            valid_moves = self.board.get_valid_moves(pos)
+            if not valid_moves:
+                return
+            move = choice(valid_moves)
+            self.move_piece(
+                move._from,
+                move._to,
+                move._extra_capture,
+                move.enpassant_target,
+                move.reset_counter,
+            )
+    #FIXME: After clicking there is a bug where tiles dont turn back into color
+    
+        def on_enter(e: Event) -> None:
+            valid_moves = self.board.get_valid_moves(pos)
+            if not valid_moves:
+                return
+            # FIXME
+
+            flattened = [btn for sublist in [self.grid_slaves(*move._to) for move in valid_moves] for btn in sublist]
+            for btn in flattened:
+                btn["background"] = "white"
+            #TODO: Add hover for invalid button["bg"] == "white"
+            # TODO: add method for getting button element with self.gridslaves
+            
+        
+        def on_exit(e: Event)-> None:
+            valid_moves = self.board.get_valid_moves(pos)
+            if not valid_moves:
+                return
+
+            flattened = [btn for sublist in [self.grid_slaves(*move._to) for move in valid_moves] for btn in sublist]
+            for btn, move in zip(flattened, valid_moves):
+                bg = self.theme[sum(move._to) % 2]
+                btn["background"] = bg
+
+            
+        
+        return btn_cmd, on_enter, on_exit
+    
+
 
     # iterate over board
     def refresh_board(self):

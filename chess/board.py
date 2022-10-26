@@ -25,7 +25,7 @@ class Board:
     pieces: _Grid = field(init=False, default_factory=empty_board)
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
     enpassant_target: Position | None = field(init=False, default=None)
-    fifty_move_counter: int = field(init=False, default=0)
+    move_counter: int = field(init=False, default=0)
     # REcord down 50 move rule
 
     def __post_init__(self):
@@ -51,7 +51,7 @@ class Board:
             self.place(Piece(divmod(i, 8), *FEN_MAP[p]))
 
     # Slicing for indexing __getitem__
-    
+
     @property
     def own_king(self) -> Piece:
         return next(
@@ -61,7 +61,7 @@ class Board:
                 if piece.type == PieceType.KING and piece.color == self.color_turn
             )
         )
-    
+
     @property
     def other_king(self) -> Piece:
         return next(
@@ -71,7 +71,6 @@ class Board:
                 if piece.type == PieceType.KING and piece.color != self.color_turn
             )
         )
-
 
     def get_valid_moves(self, pos: Position) -> list[Move]:
         return MOVE_CALCULATORS[self.piece(pos).type](self, pos)
@@ -100,6 +99,10 @@ class Move:
     _to: Position
     _extra_capture: Position | None = None
     enpassant_target: Position | None = None
+    
+    @property
+    def reset_counter(self) -> bool:
+        return self._from_piece.type == PieceType.PAWN or bool(self._to_piece)
 
     @property
     def _from_piece(self) -> Piece:
@@ -204,19 +207,17 @@ class Move:
         )
 
 
-def print_valid_moves(moves: list[Move], piece: Piece):
-    valid_moves = [move._to for move in moves]
-    print(f"{piece}\t{valid_moves=}" if valid_moves else f"!NO VALID {piece}  MOVES!")
+# def print_valid_moves(moves: list[Move], piece: Piece):
+#     valid_moves = [move._to for move in moves]
+#     print(f"{piece}\t{valid_moves=}" if valid_moves else f"!NO VALID {piece}  MOVES!")
 
 
 def get_valid_moves_empty(*args, **kwargs) -> list[Move]:
-    print("!EMPTY!")
     return []
 
 
 def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
     """Priority: Empassat, Pincer, Long, Short"""
-    piece = board.piece(pos)
 
     enpassant = [
         move
@@ -252,7 +253,6 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
 
 
 def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
-    piece = board.piece(pos)
 
     valid_moves = [move for move in Move.perp(board, pos) if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
@@ -263,7 +263,6 @@ def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
 
 
 def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
-    piece = board.piece(pos)
 
     valid_moves = [move for move in Move.lshapes(board, pos) if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
@@ -274,7 +273,6 @@ def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
 
 
 def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
-    piece = board.piece(pos)
 
     valid_moves = [move for move in Move.diag(board, pos) if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
@@ -284,10 +282,10 @@ def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
     # TODO: give pieces values and implement sorting, if multiple same values, do random choice
 
     return valid_moves
+    # Just return best move/moves
 
 
 def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
-    piece = board.piece(pos)
 
     all_moves = Move.diag(board, pos) + Move.perp(board, pos)
     valid_moves = [move for move in all_moves if move.valid]
@@ -299,7 +297,6 @@ def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
 
 
 def get_valid_moves_king(board: Board, pos: Position) -> list[Move]:
-    piece = board.piece(pos)
 
     all_moves = Move.diag(board, pos, 1) + Move.perp(board, pos, 1)
     valid_moves = [move for move in all_moves if move.valid]
