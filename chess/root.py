@@ -82,6 +82,9 @@ class Root(Tk):
             ...  # TODO:draw! Ending game, check or checkmate
         # TODO: GAME WIN/GAME LOSS/GAME DRAW!
         # TODO:UNDO MOVE
+        # TODO: ALLOW player's own move, two click moves
+        # record down last selected piece and button detect that selected piece and does something when clicked, else it deselects logic if click away or another piece, if click on other pieces other than highlighted ones, deselect!
+        # TODO: force kill, find ALL moves, from own color, highlight available pieces
         self.board.toggle_color_turn()
 
     def bg(self, pos: Position) -> str:
@@ -118,7 +121,9 @@ class Root(Tk):
             weights = [
                 PIECE_VAL[move._to_piece.type]
                 if move._to_piece
-                else max(abs(move._to[0] - move._from[0]), abs(move._to[1] - move._from[1]))
+                else max(
+                    abs(move._to[0] - move._from[0]), abs(move._to[1] - move._from[1])
+                )
                 for move in valid_moves
             ]
 
