@@ -1,20 +1,25 @@
 # RANDOMCHESS
-Building a Chess App with tkinter
-
-## Resources
-Chess Sprites by Cburnett, taken from wikipedia commons
-ArjanCodes' chess refactoring code: https://github.com/ArjanCodes/2022-chessroast
-
-## About Me
-Hi I'm commonly known as Luck and I'm completing my Masters of Data Science but I have a passion for programming and creating mini projects in my spare time.
-This is all done as part of a humble learning journey!
-
-## About this project
-I do love chess + I love coding so why not try practicing my Python skills relating to tkinter and OOP? The inspiration started out with seeing ArjanCodes' chess refactoring video in my Subscriptions tab: https://youtu.be/n0i4SqjQdis OH btw Hikaru got me back into chess after around 5 years of not playing it, huge thanks!
-
-So I challenged myself to try to code a version of Chess without watching the video and then come back to look at it when I decided I've done a fair bit of work.
+Building a not-so-normal Chess App with tkinter
 
 # UPDATE LOG
+
+## 27/10/22 WOW Improvmenets!
+Game logic has been changed to -SerialKiller Chess- where pieces must prioritise capturing enemy pieces over usual movement. If multiple targets are available, kills one at random, same goes for movement.
+
+### New improvements
+#### Game Logic
+1.  All basic movements of all pieces (including the pesky pawn: en-passant)
+2.  Applied almost all checking criteria (eg. avoid capturing own pieces, unable to move with obstruction)
+3.  Board no longer jitters upon occassional piece movement and board reset, UI improvement!
+#### UI/UX
+1.  Hovering over pieces will show indicator of possible moves in white or unmovable pieces in red
+
+### Future developments
+1.  General: Castling logic
+2.  General: King checks
+3.  Serial-Killer-Chess: Randomised kills could be weighted based on captured Piece Value
+4.  Serial-Killer-Chess: Logic could be changed to 'must kill if any piece can' instead of each piece
+
 
 ## 25/10/22 Update! Revamp!
 Refactored code based on inspiration for Uncle Arjan and developed till almost similar functionalities as the previous pitstop. I am actually learning so much about OOP, decoupling etc, this is good!
@@ -26,7 +31,7 @@ Refactored code based on inspiration for Uncle Arjan and developed till almost s
 4.  Pieces can be captured (overwritten)
 
 ### Main features to be developed
-1. King captured logic (I make the rules here and for now, I'll dictate the game is won when the king is CAPTURED)
+1.  King captured logic (I make the rules here and for now, I'll dictate the game is won when the king is CAPTURED)
 2.  King check logic to prevent illegal (/pin) moves
 3.  Pieces should not be able to jump over things (except ♞)
 4.  Castling? ♔♖♚♜
@@ -39,3 +44,18 @@ And right after this commit, despite being far off from a fully functioning ches
 
 ## 12/10/22 Get set, GO!
 By records, the project folder was created on this day
+
+# ABOUT
+
+## About this project
+I do love chess + I love coding so why not try practicing my Python skills relating to tkinter and OOP? The inspiration started out with seeing ArjanCodes' chess refactoring video in my Subscriptions tab: https://youtu.be/n0i4SqjQdis OH btw Hikaru got me back into chess after around 5 years of not playing it, huge thanks!
+
+So I challenged myself to try to code a version of Chess without watching the video and then come back to look at it when I decided I've done a fair bit of work.
+
+## About Me
+Hi I'm commonly known as Luck and I'm completing my Masters of Data Science but I have a passion for programming and creating mini projects in my spare time.
+This is all done as part of a humble learning journey!
+
+## Resources
+Chess Sprites by Cburnett, taken from wikipedia commons
+ArjanCodes' chess refactoring code: https://github.com/ArjanCodes/2022-chessroast
