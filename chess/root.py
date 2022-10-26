@@ -100,6 +100,8 @@ class Root(Tk):
     
     def bind_factory(self, pos: Position) -> tuple[Callable[[], None],Callable[[Event], None], Callable[[Event], None]]:
         def on_click() -> None:
+            if not self.board.piece(pos):
+                return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 return
@@ -120,22 +122,31 @@ class Root(Tk):
     #FIXME: After clicking there is a bug where tiles dont turn back into color
     
         def on_enter(e: Event) -> None:
+            if not self.board.piece(pos):
+                return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
-                return
+                btn = self.grid_slaves(*pos)[0]
+                btn["background"] = "#f54842"
             # FIXME
-
+        # TODO: Convert clicker to event handler, add more event handlers with click in and click out
             flattened = [btn for sublist in [self.grid_slaves(*move._to) for move in valid_moves] for btn in sublist]
             for btn in flattened:
+                # TODO: bring these to constants, game colors
                 btn["background"] = "white"
             #TODO: Add hover for invalid button["bg"] == "white"
             # TODO: add method for getting button element with self.gridslaves
             
 
         def on_exit(e: Event)-> None:
+            if not self.board.piece(pos):
+                return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
-                return
+                btn = self.grid_slaves(*pos)[0]
+                bg = self.theme[sum(pos)%2]
+                #TODO: get tile color property
+                btn["background"] = bg
 
             flattened = [btn for sublist in [self.grid_slaves(*move._to) for move in valid_moves] for btn in sublist]
             for btn, move in zip(flattened, valid_moves):
