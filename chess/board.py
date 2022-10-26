@@ -4,9 +4,9 @@ from dataclasses import dataclass, field
 from itertools import product
 from os import stat
 from typing import Callable, Self
-from tksvg import SvgImage
 
 import numpy as np
+from tksvg import SvgImage
 
 from .constants import THEME_RED
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
@@ -100,7 +100,7 @@ class Move:
     _to: Position
     _extra_capture: Position | None = None
     enpassant_target: Position | None = None
-    
+
     @property
     def reset_counter(self) -> bool:
         return self._from_piece.type == PieceType.PAWN or bool(self._to_piece)
@@ -243,7 +243,10 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
         for move in Move.front_short(board, pos)
         if move.valid and PawnCheck.front_short_valid(move)
     ]
-    all_moves = enpassant + pincer +front_long+ front_short
+    capture_moves = enpassant + pincer
+    if capture_moves:
+        return capture_moves
+    all_moves = enpassant + pincer + front_long + front_short
     return all_moves
 
     if enpassant:
