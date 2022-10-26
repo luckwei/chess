@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 
-TILE_SIZE = 60
-PIECE_SIZE = 53
-
+class SIZE(IntEnum):
+    TILE = 60
+    PIECE = 53
 
 class Color(StrEnum):
     LIGHT_RED = "#ffd1f6"
@@ -13,10 +13,6 @@ class Color(StrEnum):
     LIGHT_BLUE = "#98e2fa"
     DARK_BLUE = "#2a7cf7"
     WHITE = "#FFFFFF"
-
-
-_ColorPair = tuple[Color, Color]
-
 
 class THEME(StrEnum):
     LIGHT_TILES = Color.LIGHT_RED

@@ -9,7 +9,7 @@ from typing import Callable
 from tksvg import SvgImage
 
 from .board import Board
-from .constants import PIECE_SIZE, THEME, TILE_SIZE
+from .constants import THEME, SIZE
 from .piece import COLOR_TYPE, PIECE_VAL, Piece
 from .types import Position
 
@@ -23,7 +23,7 @@ class Root(Tk):
 
         self.IMG_DICT = {
             (type, color): SvgImage(
-                file=f"res/{type}_{color}.svg", scaletowidth=PIECE_SIZE
+                file=f"res/{type}_{color}.svg", scaletowidth=SIZE.PIECE
             )
             for color, type in COLOR_TYPE
         }
@@ -42,8 +42,8 @@ class Root(Tk):
                 bg=self.bg(pos),
                 activebackground=THEME.ACTIVE_BG,
                 bd=0,
-                height=TILE_SIZE,
-                width=TILE_SIZE,
+                height=SIZE.TILE,
+                width=SIZE.TILE,
             )
             on_click, on_enter, on_exit = self.bind_factory(pos)
             button.bind("<ButtonRelease-1>", on_click)
