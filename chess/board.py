@@ -12,7 +12,6 @@ from .constants import THEME_RED
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 from .types import ColorPair, Position
-from chess import piece
 
 _Grid = dict[Position, Piece]
 
@@ -23,7 +22,6 @@ def empty_board() -> _Grid:
 
 @dataclass
 class Board:
-    theme: ColorPair = THEME_RED
     pieces: _Grid = field(init=False, default_factory=empty_board)
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
     enpassant_target: Position | None = field(init=False, default=None)
@@ -79,7 +77,7 @@ class Board:
 
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
-        rows = ["".join(pieces_str[i : i + 8]) for i in range(0,64,8)]
+        rows = ["".join(pieces_str[i : i + 8]) for i in range(0, 64, 8)]
         return "\n".join(rows)
 
     def place(self, piece: Piece) -> None:
@@ -90,7 +88,6 @@ class Board:
 
     def __getitem__(self, pos: Position) -> Piece:
         return self.pieces[pos]
-
 
 
 @dataclass
@@ -114,7 +111,7 @@ class Move:
         return self.board[self._to]
 
     @property
-    def color_move(self) -> PieceColor:
+    def color_turn(self) -> PieceColor:
         return self.board.color_turn
 
     @classmethod
@@ -208,16 +205,11 @@ class Move:
         )
 
 
-# def print_valid_moves(moves: list[Move], piece: Piece):
-#     valid_moves = [move._to for move in moves]
-#     print(f"{piece}\t{valid_moves=}" if valid_moves else f"!NO VALID {piece}  MOVES!")
-
-
-def get_valid_moves_empty(*args, **kwargs) -> list[Move]:
+def get_moves_empty(*args, **kwargs) -> list[Move]:
     return []
 
 
-def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
+def get_moves_pawn(board: Board, pos: Position) -> list[Move]:
     """Priority: Empassat, Pincer, Long, Short"""
 
     enpassant = [
@@ -258,57 +250,46 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
     return front_short
 
 
-def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
+def get_moves_rook(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.perp(board, pos) if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
 
-    if capture_moves:
-        return capture_moves
-    return valid_moves
+    return capture_moves if capture_moves else valid_moves
 
 
-def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
+def get_moves_knight(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.lshapes(board, pos) if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
 
-    if capture_moves:
-        return capture_moves
-    return valid_moves
+    return capture_moves if capture_moves else valid_moves
 
 
-def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
+def get_moves_bishop(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.diag(board, pos) if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
 
-    if capture_moves:
-        return capture_moves
-    return valid_moves
-    # Just return best move/moves
+    return capture_moves if capture_moves else valid_moves
 
 
-def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
+def get_moves_queen(board: Board, pos: Position) -> list[Move]:
 
     all_moves = Move.diag(board, pos) + Move.perp(board, pos)
     valid_moves = [move for move in all_moves if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
 
-    if capture_moves:
-        return capture_moves
-    return valid_moves
+    return capture_moves if capture_moves else valid_moves
 
 
-def get_valid_moves_king(board: Board, pos: Position) -> list[Move]:
+def get_moves_king(board: Board, pos: Position) -> list[Move]:
 
     all_moves = Move.diag(board, pos, 1) + Move.perp(board, pos, 1)
     valid_moves = [move for move in all_moves if move.valid]
     capture_moves = [move for move in valid_moves if move._to_piece]
 
-    if capture_moves:
-        return capture_moves
-    return valid_moves
+    return capture_moves if capture_moves else valid_moves
 
 
 # Next calculate bloodthirstyness by distance from enemy king #Capture the weakest/strongest piece
@@ -316,13 +297,13 @@ def get_valid_moves_king(board: Board, pos: Position) -> list[Move]:
 ValidMoveCalculator = Callable[[Board, Position], list[Move]]
 
 MOVE_CALCULATORS: dict[PieceType, ValidMoveCalculator] = {
-    PieceType.EMPTY: get_valid_moves_empty,
-    PieceType.ROOK: get_valid_moves_rook,
-    PieceType.BISHOP: get_valid_moves_bishop,
-    PieceType.KNIGHT: get_valid_moves_knight,
-    PieceType.QUEEN: get_valid_moves_queen,
-    PieceType.KING: get_valid_moves_king,
-    PieceType.PAWN: get_valid_moves_pawn,
+    PieceType.EMPTY: get_moves_empty,
+    PieceType.ROOK: get_moves_rook,
+    PieceType.BISHOP: get_moves_bishop,
+    PieceType.KNIGHT: get_moves_knight,
+    PieceType.QUEEN: get_moves_queen,
+    PieceType.KING: get_moves_king,
+    PieceType.PAWN: get_moves_pawn,
 }
 
 
@@ -362,7 +343,7 @@ class PawnCheck:
 class Checks:
     @staticmethod
     def is_color_turn(move: Move) -> bool:
-        return move.board.color_turn == move._from_piece.color
+        return move.color_turn == move._from_piece.color
 
     @staticmethod
     def to_pos_in_grid(move: Move) -> bool:
@@ -371,7 +352,7 @@ class Checks:
     @staticmethod
     def to_pos_empty_or_not_same_color(move: Move):
         to_piece = move.board[move._to]
-        color_turn = move.board.color_turn
+        color_turn = move.color_turn
         return to_piece.color != color_turn
 
     @staticmethod
