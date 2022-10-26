@@ -10,24 +10,10 @@ from tksvg import SvgImage
 
 from .board import Board
 from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
-from .piece import Piece, PieceColor, PieceType
+from .piece import Piece, PieceColor, PieceType, COLOR_TYPE
 from .types import ColorPair, Position
 
-type_color = [
-    (PieceType.EMPTY, PieceColor.NONE),
-    (PieceType.PAWN, PieceColor.BLACK),
-    (PieceType.KNIGHT, PieceColor.BLACK),
-    (PieceType.BISHOP, PieceColor.BLACK),
-    (PieceType.ROOK, PieceColor.BLACK),
-    (PieceType.QUEEN, PieceColor.BLACK),
-    (PieceType.KING, PieceColor.BLACK),
-    (PieceType.PAWN, PieceColor.WHITE),
-    (PieceType.KNIGHT, PieceColor.WHITE),
-    (PieceType.BISHOP, PieceColor.WHITE),
-    (PieceType.ROOK, PieceColor.WHITE),
-    (PieceType.QUEEN, PieceColor.WHITE),
-    (PieceType.KING, PieceColor.WHITE),
-]
+
 
 
 class Root(Tk):
@@ -43,7 +29,7 @@ class Root(Tk):
             (type, color): SvgImage(
                 file=f"res/{type}_{color}.svg", scaletowidth=PIECE_SIZE
             )
-            for type, color in type_color
+            for color, type in COLOR_TYPE
         }
 
         # Bind event logic
@@ -64,9 +50,9 @@ class Root(Tk):
                 bd=0,
                 height=TILE_SIZE,
                 width=TILE_SIZE,
-                command=on_click,
+                # command=on_click,
             )
-
+            button.bind("<ButtonRelease-1>", on_click)
             button.bind("<Enter>", on_enter)
             button.bind("<Leave>", on_exit)
 
@@ -120,8 +106,8 @@ class Root(Tk):
 
     def bind_factory(
         self, pos: Position
-    ) -> tuple[Callable[[], None], Callable[[Event], None], Callable[[Event], None]]:
-        def on_click() -> None:
+    ) -> tuple[Callable[[Event], None], Callable[[Event], None], Callable[[Event], None]]:
+        def on_click(e: Event) -> None:
             if not self.board[pos]:
                 return
             valid_moves = self.board.get_valid_moves(pos)

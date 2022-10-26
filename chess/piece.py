@@ -22,6 +22,22 @@ class PieceColor(StrEnum):
     NONE = auto()
     WHITE = auto()
     BLACK = auto()
+    
+COLOR_TYPE: list[tuple[PieceColor, PieceType]] = [
+    (PieceColor.NONE, PieceType.EMPTY),
+    (PieceColor.BLACK, PieceType.PAWN),
+    (PieceColor.BLACK, PieceType.KNIGHT),
+    (PieceColor.BLACK, PieceType.BISHOP),
+    (PieceColor.BLACK, PieceType.ROOK),
+    (PieceColor.BLACK, PieceType.QUEEN),
+    (PieceColor.BLACK, PieceType.KING),
+    (PieceColor.WHITE, PieceType.PAWN),
+    (PieceColor.WHITE, PieceType.KNIGHT),
+    (PieceColor.WHITE, PieceType.BISHOP),
+    (PieceColor.WHITE, PieceType.ROOK),
+    (PieceColor.WHITE, PieceType.QUEEN),
+    (PieceColor.WHITE, PieceType.KING),
+]
 
 
 FEN_MAP: dict[str, tuple[PieceColor, PieceType]] = {
@@ -61,7 +77,9 @@ PIECE_VAL = {
     PieceType.BISHOP: 3,
     PieceType.ROOK: 5,
     PieceType.QUEEN: 9,
-    PieceType.KING: 4,  # Generally stronger than bishop/knight in end game
+    PieceType.KING: 10,
+    # Generally stronger than bishop/knight in end game (4)
+    # But in killer chess has to be worth more than the queen (10)
 }
 
 
