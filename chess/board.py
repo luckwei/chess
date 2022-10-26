@@ -49,7 +49,8 @@ class Board:
             if p == " ":
                 continue
             self.place(Piece(divmod(i, 8), *FEN_MAP[p]))
-
+    # Property king
+    # Slicing for indexing __getitem__
     def find_king(self, color: PieceColor) -> Piece:
         return next(
             (
@@ -76,102 +77,102 @@ class Board:
     def piece(self, pos: Position) -> Piece:
         return self.pieces[pos]
 
-    def empty(self, pos: Position) -> bool:
-        return self.piece(pos).type == PieceType.EMPTY
+    # TODO slice function
 
 
 @dataclass
 class Move:
     board: Board
-    piece: Piece
     _from: Position
     _to: Position
     _extra_capture: Position | None = None
     enpassant_target: Position | None = None
 
     @property
-    def to_piece(self) -> Piece:
+    def _from_piece(self) -> Piece:
+        return self.board.piece(self._from)
+
+    @property
+    def _to_piece(self) -> Piece:
         return self.board.piece(self._to)
 
+    @property
+    def color_move(self) -> PieceColor:
+        return self.board.color_turn
+
     @classmethod
-    def diag(cls, board: Board, piece: Piece, _from: Position, n=7) -> list[Self]:
+    def diag(cls, board: Board, _from: Position, n=7) -> list[Self]:
         row, col = _from
-        move_obj_list = []
+        moves = []
         for i in range(1, n + 1):
-            NE = cls(board, piece, _from, _to=(row + i, col + i))
-            NW = cls(board, piece, _from, _to=(row + i, col - i))
-            SE = cls(board, piece, _from, _to=(row - i, col + i))
-            SW = cls(board, piece, _from, _to=(row - i, col - i))
-            move_obj_list.extend([NE, NW, SE, SW])
-        # TODO:validation should not be done in the whole class, move into these factory class methods later
+            NE = cls(board, _from, _to=(row + i, col + i))
+            NW = cls(board, _from, _to=(row + i, col - i))
+            SE = cls(board, _from, _to=(row - i, col + i))
+            SW = cls(board, _from, _to=(row - i, col - i))
+            moves.extend([NE, NW, SE, SW])
 
-        return move_obj_list
+        return moves
 
     @classmethod
-    def perp(cls, board: Board, piece: Piece, _from: Position, n=7) -> list[Self]:
+    def perp(cls, board: Board, _from: Position, n=7) -> list[Self]:
         row, col = _from
-        move_obj_list = []
+        moves = []
         for i in range(1, n + 1):
-            N = cls(board, piece, _from, _to=(row + i, col))
-            S = cls(board, piece, _from, _to=(row - i, col))
-            E = cls(board, piece, _from, _to=(row, col + i))
-            W = cls(board, piece, _from, _to=(row, col - i))
-            move_obj_list.extend([N, S, E, W])
-        # TODO:validation should not be done in the whole class, move into these factory class methods later
+            N = cls(board, _from, _to=(row + i, col))
+            S = cls(board, _from, _to=(row - i, col))
+            E = cls(board, _from, _to=(row, col + i))
+            W = cls(board, _from, _to=(row, col - i))
+            moves.extend([N, S, E, W])
 
-        return move_obj_list
+        return moves
 
     @classmethod
-    def lshapes(cls, board: Board, piece: Piece, _from: Position) -> list[Self]:
+    def lshapes(cls, board: Board, _from: Position) -> list[Self]:
         row, col = _from
-        direction = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
-        magnitude = [(1, 2), (2, 1)]
-        vec = [np.multiply(*dm) for dm in product(direction, magnitude)]
-        move_obj_list = [
-            cls(board, piece, _from, _to=(row + x, col + y)) for x, y in vec
-        ]
-        return move_obj_list
+
+        moves = []
+        for quadrant in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+            for magnitude in [(1, 2), (2, 1)]:
+                x, y = np.multiply(quadrant, magnitude)
+
+                moves.append(cls(board, _from, _to=(row + x, col + y)))
+        return moves
 
     @classmethod
-    def pincer(cls, board: Board, piece: Piece, _from: Position) -> list[Self]:
+    def pincer(cls, board: Board, _from: Position) -> list[Self]:
         row, col = _from
         dir = board.piece(_from).dir
-        L = cls(board, piece, _from, _to=(row + dir, col + 1))
-        R = cls(board, piece, _from, _to=(row + dir, col - 1))
+        L = cls(board, _from, _to=(row + dir, col + 1))
+        R = cls(board, _from, _to=(row + dir, col - 1))
 
         return [L, R]
 
     @classmethod
-    def enpassant(cls, board: Board, piece: Piece, _from: Position) -> list[Self]:
+    def enpassant(cls, board: Board, _from: Position) -> list[Self]:
         row, col = _from
         dir = board.piece(_from).dir
-        L = cls(
-            board, piece, _from, _to=(row + dir, col + 1), _extra_capture=(row, col + 1)
-        )
-        R = cls(
-            board, piece, _from, _to=(row + dir, col - 1), _extra_capture=(row, col - 1)
-        )
+        L = cls(board, _from, _to=(row + dir, col + 1), _extra_capture=(row, col + 1))
+        R = cls(board, _from, _to=(row + dir, col - 1), _extra_capture=(row, col - 1))
 
         return [L, R]
 
     @classmethod
-    def front_short(cls, board: Board, piece: Piece, _from: Position) -> list[Self]:
+    def front_short(cls, board: Board, _from: Position) -> list[Self]:
         # does not allow capture
         # put condition here
         row, col = _from
         dir = board.piece(_from).dir
 
-        return [cls(board, piece, _from, _to=(row + dir, col))]
+        return [cls(board, _from, _to=(row + dir, col))]
 
     @classmethod
-    def front_long(cls, board, piece, _from: Position) -> list[Self]:
+    def front_long(cls, board, _from: Position) -> list[Self]:
         row, col = _from
         dir = board.piece(_from).dir
 
         return [
             cls(
                 board,
-                piece,
                 _from,
                 _to := (row + 2 * dir, col),
                 enpassant_target=_to,
@@ -206,25 +207,25 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
 
     enpassant = [
         move
-        for move in Move.enpassant(board, piece, pos)
+        for move in Move.enpassant(board, pos)
         if move.valid and PawnCheck.enpassant_valid(move)
     ]
 
     pincer = [
         move
-        for move in Move.pincer(board, piece, pos)
+        for move in Move.pincer(board, pos)
         if move.valid and PawnCheck.pincer_valid(move)
     ]
 
     front_long = [
         move
-        for move in Move.front_long(board, piece, pos)
+        for move in Move.front_long(board, pos)
         if move.valid and PawnCheck.front_long_valid(move)
     ]
 
     front_short = [
         move
-        for move in Move.front_short(board, piece, pos)
+        for move in Move.front_short(board, pos)
         if move.valid and PawnCheck.front_short_valid(move)
     ]
 
@@ -240,9 +241,8 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
 def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    valid_moves = [move for move in Move.perp(board, piece, pos) if move.valid]
-
-    capture_moves = [move for move in valid_moves if move.to_piece]
+    valid_moves = [move for move in Move.perp(board, pos) if move.valid]
+    capture_moves = [move for move in valid_moves if move._to_piece]
 
     if capture_moves:
         return capture_moves
@@ -252,23 +252,23 @@ def get_valid_moves_rook(board: Board, pos: Position) -> list[Move]:
 def get_valid_moves_knight(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    valid_moves = [move for move in Move.lshapes(board, piece, pos) if move.valid]
-    capture_moves = [move for move in valid_moves if move.to_piece]
+    valid_moves = [move for move in Move.lshapes(board, pos) if move.valid]
+    capture_moves = [move for move in valid_moves if move._to_piece]
 
     if capture_moves:
         return capture_moves
-
     return valid_moves
 
 
 def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    valid_moves = [move for move in Move.diag(board, piece, pos) if move.valid]
-    capture_moves = [move for move in valid_moves if move.to_piece]
+    valid_moves = [move for move in Move.diag(board, pos) if move.valid]
+    capture_moves = [move for move in valid_moves if move._to_piece]
 
     if capture_moves:
         return capture_moves
+    # TODO: give pieces values and implement sorting, if multiple same values, do random choice
 
     return valid_moves
 
@@ -276,9 +276,9 @@ def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
 def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    all_moves = Move.diag(board, piece, pos) + Move.perp(board, piece, pos)
+    all_moves = Move.diag(board, pos) + Move.perp(board, pos)
     valid_moves = [move for move in all_moves if move.valid]
-    capture_moves = [move for move in valid_moves if move.to_piece]
+    capture_moves = [move for move in valid_moves if move._to_piece]
 
     if capture_moves:
         return capture_moves
@@ -288,9 +288,9 @@ def get_valid_moves_queen(board: Board, pos: Position) -> list[Move]:
 def get_valid_moves_king(board: Board, pos: Position) -> list[Move]:
     piece = board.piece(pos)
 
-    all_moves = Move.diag(board, piece, pos, 1) + Move.perp(board, piece, pos, 1)
+    all_moves = Move.diag(board, pos, 1) + Move.perp(board, pos, 1)
     valid_moves = [move for move in all_moves if move.valid]
-    capture_moves = [move for move in valid_moves if move.to_piece]
+    capture_moves = [move for move in valid_moves if move._to_piece]
 
     if capture_moves:
         return capture_moves
@@ -319,16 +319,17 @@ class PawnCheck:
 
     @staticmethod
     def pincer_valid(move: Move) -> bool:
+        _from_piece = move.board.piece(move._from)
         _to_piece = move.board.piece(move._to)
         if not _to_piece:
             return False
-        if _to_piece.color != move.piece.color:
+        if _to_piece.color != _from_piece.color:
             return True
         return False
 
     @staticmethod
     def front_long_valid(move: Move) -> bool:
-        if move.piece.color == PieceColor.WHITE:
+        if move._from_piece.color == PieceColor.WHITE:
             starting_rank = move._from[0] == 6
             no_obstruction = not move.board.piece((5, move._from[1]))
         else:
@@ -347,7 +348,7 @@ class PawnCheck:
 class Checks:
     @staticmethod
     def is_color_turn(move: Move) -> bool:
-        return move.board.color_turn == move.piece.color
+        return move.board.color_turn == move._from_piece.color
 
     @staticmethod
     def to_pos_in_grid(move: Move) -> bool:
@@ -375,11 +376,14 @@ class Checks:
     def no_obstruction(move: Move) -> bool:
         x1, y1 = move._from
         x2, y2 = move._to
-        if move.piece.type == PieceType.KNIGHT:
+
+        # adjacent pieces and knights has no obstruction
+        if (
+            max(abs(x2 - x1), abs(y2 - y1)) == 1
+            or move._from_piece.type == PieceType.KNIGHT
+        ):
             return True
-        # adjacent piece has no obstruction
-        if max(abs(x2 - x1), abs(y2 - y1)) == 1:
-            return True
+
         # perp move: same row
         if x1 == x2:
             for y in range(min(y1, y2) + 1, max(y1, y2)):
