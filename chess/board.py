@@ -49,16 +49,29 @@ class Board:
             if p == " ":
                 continue
             self.place(Piece(divmod(i, 8), *FEN_MAP[p]))
-    # Property king
+
     # Slicing for indexing __getitem__
-    def find_king(self, color: PieceColor) -> Piece:
+    
+    @property
+    def own_king(self) -> Piece:
         return next(
             (
                 piece
                 for piece in self.pieces.values()
-                if piece.type == PieceType.KING and piece.color == color
+                if piece.type == PieceType.KING and piece.color == self.color_turn
             )
         )
+    
+    @property
+    def other_king(self) -> Piece:
+        return next(
+            (
+                piece
+                for piece in self.pieces.values()
+                if piece.type == PieceType.KING and piece.color != self.color_turn
+            )
+        )
+
 
     def get_valid_moves(self, pos: Position) -> list[Move]:
         return MOVE_CALCULATORS[self.piece(pos).type](self, pos)
@@ -369,7 +382,7 @@ class Checks:
         # pawns on the near diags
         # knights on the Ls
         board = move.board
-        king = board.find_king(board.color_turn)
+        king = board.own_king
         return True
 
     @staticmethod
