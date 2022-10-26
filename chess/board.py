@@ -12,6 +12,7 @@ from .constants import THEME_RED
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 from .types import ColorPair, Position
+from chess import piece
 
 _Grid = dict[Position, Piece]
 
@@ -78,7 +79,7 @@ class Board:
 
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
-        rows = ["".join(pieces_str[i * 8 : (i + 1) * 8]) for i in range(8)]
+        rows = ["".join(pieces_str[i : i + 8]) for i in range(0,64,8)]
         return "\n".join(rows)
 
     def place(self, piece: Piece) -> None:
