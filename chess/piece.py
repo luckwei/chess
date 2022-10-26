@@ -55,6 +55,14 @@ PIECE_STR: dict[tuple[PieceColor, PieceType], str] = {
     (PieceColor.WHITE, PieceType.KING): "♔",
 }
 
+PIECE_VAL = {
+    PieceType.PAWN: 1,
+    PieceType.KNIGHT: 3,
+    PieceType.BISHOP: 3,
+    PieceType.ROOK: 5,
+    PieceType.QUEEN: 9,
+    PieceType.KING: 4,  # Generally stronger than bishop/knight in end game
+}
 
 
 @dataclass
@@ -64,14 +72,9 @@ class Piece:
     type: PieceType = PieceType.EMPTY
 
     @property
-    def dir(self) -> Literal[-1, 1, 0]:
-        match self.color:
-            case PieceColor.WHITE:
-                return -1
-            case PieceColor.BLACK:
-                return 1
-        return 0
-        # TODO: FIX GET WHOLE DICTIONARY
+    def dir(self) -> int:
+        direction = {PieceColor.WHITE: -1, PieceColor.BLACK: 1, PieceColor.NONE: 0}
+        return direction[self.color]
 
     def __str__(self):
         return PIECE_STR[(self.color, self.type)]

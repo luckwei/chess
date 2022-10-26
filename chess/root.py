@@ -56,8 +56,8 @@ class Root(Tk):
 
         self.board.enpassant_target = enpassant_target
 
-        # add additional flag: reset when pawn moves is made or capture
-        
+        # TODO:add additional flag: reset when pawn moves is made or capture
+
         if reset:=True:
             self.board.fifty_move_counter = 0
         self.board.fifty_move_counter += 1
