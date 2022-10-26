@@ -8,10 +8,9 @@ from typing import Callable, Self
 import numpy as np
 from tksvg import SvgImage
 
-from .constants import THEME_RED
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
-from .types import ColorPair, Position
+from .types import Position
 
 _Grid = dict[Position, Piece]
 

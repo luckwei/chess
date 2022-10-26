@@ -9,9 +9,9 @@ from typing import Callable
 from tksvg import SvgImage
 
 from .board import Board
-from .constants import PIECE_SIZE, MAIN_THEME, TILE_SIZE
-from .piece import COLOR_TYPE, Piece, PIECE_VAL
-from .types import ColorPair, Position
+from .constants import PIECE_SIZE, THEME, TILE_SIZE
+from .piece import COLOR_TYPE, PIECE_VAL, Piece
+from .types import Position
 
 
 class Root(Tk):
@@ -40,7 +40,7 @@ class Root(Tk):
             button = Button(
                 self,
                 bg=self.bg(pos),
-                activebackground="white",
+                activebackground=THEME.ACTIVE_BG,
                 bd=0,
                 height=TILE_SIZE,
                 width=TILE_SIZE,
@@ -85,8 +85,8 @@ class Root(Tk):
         self.board.toggle_color_turn()
 
     def bg(self, pos: Position) -> str:
-        return MAIN_THEME[sum(pos) %2]
-    
+        return (THEME.LIGHT_TILES, THEME.DARK_TILES)[sum(pos) % 2]
+
     def reset_board(self) -> None:
         self.board = Board()
         for pos in self.board.pieces:
@@ -94,7 +94,7 @@ class Root(Tk):
 
     def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
-    
+
     def reset_btn_bg(self, pos: Position) -> None:
         self.btn(pos)["bg"] = self.bg(pos)
 
@@ -104,9 +104,11 @@ class Root(Tk):
 
     def bind_factory(
         self, pos: Position
-    ) -> tuple[Callable[[Event], None], Callable[[Event], None], Callable[[Event], None]]:
+    ) -> tuple[
+        Callable[[Event], None], Callable[[Event], None], Callable[[Event], None]
+    ]:
         def on_click(e: Event) -> None:
-            
+
             if self.board[pos].color != self.board.color_turn:
                 return
             valid_moves = self.board.get_valid_moves(pos)
@@ -121,21 +123,20 @@ class Root(Tk):
                 move.enpassant_target,
                 move.reset_counter,
             )
-            
+
             for move in valid_moves:
                 self.reset_btn_bg(move._to)
-                
 
         def on_enter(e: Event) -> None:
             if self.board[pos].color != self.board.color_turn:
                 return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
-                self.btn(pos)["bg"] = "#f54842"
+                self.btn(pos)["bg"] = THEME.INVALID_TILE
 
             for move in valid_moves:
                 btn = self.btn(move._to)
-                btn["bg"] = "white"
+                btn["bg"] = THEME.VALID_HIGHLIGHT
 
         def on_exit(e: Event) -> None:
             if not self.board[pos]:
