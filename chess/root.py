@@ -150,6 +150,8 @@ class Root(Tk):
         def on_enter(e: Event) -> None:
             if not self.board.piece(pos):
                 return
+            if self.board.piece(pos).color != self.board.color_turn:
+                return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 btn = self.grid_slaves(*pos)[0]
