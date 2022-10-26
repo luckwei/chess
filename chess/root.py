@@ -118,7 +118,7 @@ class Root(Tk):
             weights = [
                 PIECE_VAL[move._to_piece.type]
                 if move._to_piece
-                else max((move._to[0] - move._from[0]), (move._to[1] - move._from[1]))
+                else max(abs(move._to[0] - move._from[0]), abs(move._to[1] - move._from[1]))
                 for move in valid_moves
             ]
 
