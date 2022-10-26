@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from itertools import product
 from os import stat
 from typing import Callable, Self
+from tksvg import SvgImage
 
 import numpy as np
 
@@ -26,6 +27,7 @@ class Board:
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
     enpassant_target: Position | None = field(init=False, default=None)
     move_counter: int = field(init=False, default=0)
+    imgs: list[SvgImage] = field(init=False, default_factory=list)
     # REcord down 50 move rule
 
     def __post_init__(self):
@@ -242,6 +244,8 @@ def get_valid_moves_pawn(board: Board, pos: Position) -> list[Move]:
         for move in Move.front_short(board, pos)
         if move.valid and PawnCheck.front_short_valid(move)
     ]
+    all_moves = enpassant + pincer +front_long+ front_short
+    return all_moves
 
     if enpassant:
         return enpassant
