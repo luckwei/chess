@@ -8,7 +8,7 @@ from typing import Callable, Self
 import numpy as np
 
 from .constants import THEME_RED
-from .piece import COLOR_STR, FEN_MAP, Piece, PieceColor, PieceType
+from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 from .types import ColorPair, Position
 

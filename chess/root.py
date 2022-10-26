@@ -9,7 +9,7 @@ from tksvg import SvgImage
 
 from .board import Board
 from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
-from .piece import COLOR_STR, Piece
+from .piece import Piece
 from .types import ColorPair, Position
 
 
@@ -86,7 +86,7 @@ class Root(Tk):
         bg = self.theme[sum(pos) % 2]
 
         img = SvgImage(
-            file=f"res/{piece.type}_{COLOR_STR[piece.color]}.svg",
+            file=f"res/{piece.type}_{piece.color}.svg",
             scaletowidth=PIECE_SIZE,
         )
         self.imgs.append(img)

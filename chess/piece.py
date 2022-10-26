@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ast import Str
 from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
 from typing import Literal
@@ -17,10 +18,10 @@ class PieceType(StrEnum):
     KING = auto()
 
 
-class PieceColor(Enum):
-    NONE = -1
-    WHITE = 0
-    BLACK = 1
+class PieceColor(StrEnum):
+    NONE = auto()
+    WHITE = auto()
+    BLACK = auto()
 
 
 FEN_MAP: dict[str, tuple[PieceColor, PieceType]] = {
@@ -38,22 +39,22 @@ FEN_MAP: dict[str, tuple[PieceColor, PieceType]] = {
     "K": (PieceColor.WHITE, PieceType.KING),
 }
 
-
-PIECE_STR: dict[PieceType, tuple[str, str]] = {
-    PieceType.EMPTY: (" ", " "),
-    PieceType.PAWN: ("♙", "♟"),
-    PieceType.ROOK: ("♖", "♜"),
-    PieceType.BISHOP: ("♗", "♝"),
-    PieceType.QUEEN: ("♕", "♛"),
-    PieceType.KING: ("♔", "♚"),
-    PieceType.KNIGHT: ("♘", "♞"),
+PIECE_STR: dict[tuple[PieceColor, PieceType], str] = {
+    (PieceColor.NONE, PieceType.EMPTY): " ",
+    (PieceColor.BLACK, PieceType.PAWN): "♟",
+    (PieceColor.BLACK, PieceType.KNIGHT): "♞",
+    (PieceColor.BLACK, PieceType.BISHOP): "♝",
+    (PieceColor.BLACK, PieceType.ROOK): "♜",
+    (PieceColor.BLACK, PieceType.QUEEN): "♛",
+    (PieceColor.BLACK, PieceType.KING): "♚",
+    (PieceColor.WHITE, PieceType.PAWN): "♙",
+    (PieceColor.WHITE, PieceType.KNIGHT): "♘",
+    (PieceColor.WHITE, PieceType.BISHOP): "♗",
+    (PieceColor.WHITE, PieceType.ROOK): "♖",
+    (PieceColor.WHITE, PieceType.QUEEN): "♕",
+    (PieceColor.WHITE, PieceType.KING): "♔",
 }
 
-COLOR_STR: dict[PieceColor, str] = {
-    PieceColor.NONE: "none",
-    PieceColor.WHITE: "white",
-    PieceColor.BLACK: "black",
-}
 
 
 @dataclass
@@ -70,9 +71,10 @@ class Piece:
             case PieceColor.BLACK:
                 return 1
         return 0
+        # TODO: FIX GET WHOLE DICTIONARY
 
     def __str__(self):
-        return PIECE_STR[self.type][self.color.value]
+        return PIECE_STR[(self.color, self.type)]
 
     def __bool__(self):
         return self.type != PieceType.EMPTY
