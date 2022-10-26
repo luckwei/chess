@@ -173,8 +173,6 @@ class Move:
 
     @classmethod
     def front_short(cls, board: Board, _from: Position) -> list[Self]:
-        # does not allow capture
-        # put condition here
         row, col = _from
         dir = board[_from].dir
 
@@ -194,7 +192,6 @@ class Move:
             )
         ]
 
-    # Valid should not be part of piece as property, either external or part of class methods
     @property
     def valid(self) -> bool:
         return (
@@ -237,18 +234,8 @@ def get_moves_pawn(board: Board, pos: Position) -> list[Move]:
         if move.valid and PawnCheck.front_short_valid(move)
     ]
     capture_moves = enpassant + pincer
-    if capture_moves:
-        return capture_moves
     all_moves = enpassant + pincer + front_long + front_short
-    return all_moves
-
-    if enpassant:
-        return enpassant
-    if pincer:
-        return pincer
-    if front_long:
-        return front_long
-    return front_short
+    return capture_moves if capture_moves else all_moves
 
 
 def get_moves_rook(board: Board, pos: Position) -> list[Move]:
@@ -293,7 +280,6 @@ def get_moves_king(board: Board, pos: Position) -> list[Move]:
     return capture_moves if capture_moves else valid_moves
 
 
-# Next calculate bloodthirstyness by distance from enemy king #Capture the weakest/strongest piece
 
 ValidMoveCalculator = Callable[[Board, Position], list[Move]]
 
@@ -363,6 +349,7 @@ class Checks:
         # bishops and queens on the diag, rook on the verts,
         # pawns on the near diags
         # knights on the Ls
+        #TODO: King check
         board = move.board
         king = board.own_king
         return True

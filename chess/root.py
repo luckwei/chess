@@ -80,7 +80,8 @@ class Root(Tk):
         if self.board.move_counter >= 20:
             print("20 moves since last capture or pawn move!")
             ...  # TODO:draw! Ending game, check or checkmate
-
+        # TODO: GAME WIN/GAME LOSS/GAME DRAW!
+        # TODO:UNDO MOVE
         self.board.toggle_color_turn()
 
     def bg(self, pos: Position) -> str:
@@ -113,8 +114,13 @@ class Root(Tk):
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 return
-            # TODO: Choose movement by displacement of x,y moved
-            weights = [PIECE_VAL[move._to_piece.type] for move in valid_moves]
+
+            weights = [
+                PIECE_VAL[move._to_piece.type]
+                if move._to_piece
+                else max((move._to[0] - move._from[0]), (move._to[1] - move._from[1]))
+                for move in valid_moves
+            ]
 
             move = choices(valid_moves, weights)[0]
             self.move_piece(
