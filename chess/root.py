@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import itertools
-from itertools import chain, product
-from random import choice
+from itertools import product
+from random import choices
 from tkinter import Button, Event, Tk, Widget
 from typing import Callable
 
 from tksvg import SvgImage
 
 from .board import Board
-from .constants import THEME, SIZE
+from .constants import SIZE, THEME
 from .piece import COLOR_TYPE, PIECE_VAL, Piece
 from .types import Position
 
@@ -114,8 +113,10 @@ class Root(Tk):
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 return
-            # TODO:Piece value here
-            move = choice(valid_moves)
+            # TODO: Choose movement by displacement of x,y moved
+            weights = [PIECE_VAL[move._to_piece.type] for move in valid_moves]
+
+            move = choices(valid_moves, weights)[0]
             self.move_piece(
                 move._from,
                 move._to,

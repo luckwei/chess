@@ -52,23 +52,25 @@ class Board:
     # Slicing for indexing __getitem__
 
     @property
-    def own_king(self) -> Piece:
+    def own_king(self) -> Piece | None:
         return next(
             (
                 piece
                 for piece in self.pieces.values()
                 if piece.type == PieceType.KING and piece.color == self.color_turn
-            )
+            ),
+            None,
         )
 
     @property
-    def other_king(self) -> Piece:
+    def other_king(self) -> Piece | None:
         return next(
             (
                 piece
                 for piece in self.pieces.values()
                 if piece.type == PieceType.KING and piece.color != self.color_turn
-            )
+            ),
+            None,
         )
 
     def get_valid_moves(self, pos: Position) -> list[Move]:

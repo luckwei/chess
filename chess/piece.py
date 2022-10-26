@@ -22,7 +22,8 @@ class PieceColor(StrEnum):
     NONE = auto()
     WHITE = auto()
     BLACK = auto()
-    
+
+
 COLOR_TYPE: list[tuple[PieceColor, PieceType]] = [
     (PieceColor.NONE, PieceType.EMPTY),
     (PieceColor.BLACK, PieceType.PAWN),
@@ -72,6 +73,8 @@ PIECE_STR: dict[tuple[PieceColor, PieceType], str] = {
 }
 
 PIECE_VAL = {
+    PieceType.EMPTY: 0.5,
+    # No problem since captures and moves are exclusive
     PieceType.PAWN: 1,
     PieceType.KNIGHT: 3,
     PieceType.BISHOP: 3,
