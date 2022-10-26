@@ -82,7 +82,7 @@ class Root(Tk):
         self.imgs.append(img)
         # Might one day want to append to board for garbage collection
         [slave.destroy() for slave in self.grid_slaves(*pos)]
-        btn_cmd, on_enter, on_exit = self.bind_factory(pos)
+        on_click, on_enter, on_exit = self.bind_factory(pos)
         button = Button(
             self,
             image=img,
@@ -91,7 +91,7 @@ class Root(Tk):
             bd=0,
             height=TILE_SIZE,
             width=TILE_SIZE,
-            command=btn_cmd,
+            command=on_click,
         )
         button.bind("<Enter>", on_enter)
         button.bind("<Leave>", on_exit)
@@ -99,7 +99,7 @@ class Root(Tk):
         # TODO: Implement hover for button
     
     def bind_factory(self, pos: Position) -> tuple[Callable[[], None],Callable[[Event], None], Callable[[Event], None]]:
-        def btn_cmd() -> None:
+        def on_click() -> None:
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 return
@@ -111,6 +111,12 @@ class Root(Tk):
                 move.enpassant_target,
                 move.reset_counter,
             )
+            flattened = [btn for sublist in [self.grid_slaves(*move._to) for move in valid_moves] for btn in sublist]
+            for btn, move in zip(flattened, valid_moves):
+                bg = self.theme[sum(move._to) % 2]
+                btn["background"] = bg
+            #TODO: add unhighlighting here
+            #TODO: create method to find button object, refactor existing function
     #FIXME: After clicking there is a bug where tiles dont turn back into color
     
         def on_enter(e: Event) -> None:
@@ -125,7 +131,7 @@ class Root(Tk):
             #TODO: Add hover for invalid button["bg"] == "white"
             # TODO: add method for getting button element with self.gridslaves
             
-        
+
         def on_exit(e: Event)-> None:
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
@@ -138,7 +144,7 @@ class Root(Tk):
 
             
         
-        return btn_cmd, on_enter, on_exit
+        return on_click, on_enter, on_exit
     
 
 
