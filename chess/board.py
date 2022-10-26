@@ -74,7 +74,7 @@ class Board:
         )
 
     def get_valid_moves(self, pos: Position) -> list[Move]:
-        return MOVE_CALCULATORS[self.piece(pos).type](self, pos)
+        return MOVE_CALCULATORS[self[pos].type](self, pos)
 
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
@@ -87,10 +87,9 @@ class Board:
     def remove(self, pos: Position) -> None:
         self.place(Piece(pos))
 
-    def piece(self, pos: Position) -> Piece:
+    def __getitem__(self, pos: Position) -> Piece:
         return self.pieces[pos]
 
-    # TODO slice function
 
 
 @dataclass
@@ -107,11 +106,11 @@ class Move:
 
     @property
     def _from_piece(self) -> Piece:
-        return self.board.piece(self._from)
+        return self.board[self._from]
 
     @property
     def _to_piece(self) -> Piece:
-        return self.board.piece(self._to)
+        return self.board[self._to]
 
     @property
     def color_move(self) -> PieceColor:
@@ -158,7 +157,7 @@ class Move:
     @classmethod
     def pincer(cls, board: Board, _from: Position) -> list[Self]:
         row, col = _from
-        dir = board.piece(_from).dir
+        dir = board[_from].dir
         L = cls(board, _from, _to=(row + dir, col + 1))
         R = cls(board, _from, _to=(row + dir, col - 1))
 
@@ -167,7 +166,7 @@ class Move:
     @classmethod
     def enpassant(cls, board: Board, _from: Position) -> list[Self]:
         row, col = _from
-        dir = board.piece(_from).dir
+        dir = board[_from].dir
         L = cls(board, _from, _to=(row + dir, col + 1), _extra_capture=(row, col + 1))
         R = cls(board, _from, _to=(row + dir, col - 1), _extra_capture=(row, col - 1))
 
@@ -178,14 +177,14 @@ class Move:
         # does not allow capture
         # put condition here
         row, col = _from
-        dir = board.piece(_from).dir
+        dir = board[_from].dir
 
         return [cls(board, _from, _to=(row + dir, col))]
 
     @classmethod
     def front_long(cls, board, _from: Position) -> list[Self]:
         row, col = _from
-        dir = board.piece(_from).dir
+        dir = board[_from].dir
 
         return [
             cls(
@@ -285,8 +284,6 @@ def get_valid_moves_bishop(board: Board, pos: Position) -> list[Move]:
 
     if capture_moves:
         return capture_moves
-    # TODO: give pieces values and implement sorting, if multiple same values, do random choice
-
     return valid_moves
     # Just return best move/moves
 
@@ -335,8 +332,8 @@ class PawnCheck:
 
     @staticmethod
     def pincer_valid(move: Move) -> bool:
-        _from_piece = move.board.piece(move._from)
-        _to_piece = move.board.piece(move._to)
+        _from_piece = move.board[move._from]
+        _to_piece = move.board[move._to]
         if not _to_piece:
             return False
         if _to_piece.color != _from_piece.color:
@@ -347,17 +344,17 @@ class PawnCheck:
     def front_long_valid(move: Move) -> bool:
         if move._from_piece.color == PieceColor.WHITE:
             starting_rank = move._from[0] == 6
-            no_obstruction = not move.board.piece((5, move._from[1]))
+            no_obstruction = not move.board[(5, move._from[1])]
         else:
             starting_rank = move._from[0] == 1
-            no_obstruction = not move.board.piece((2, move._from[1]))
+            no_obstruction = not move.board[(2, move._from[1])]
 
-        _to_empty = not move.board.piece(move._to)
+        _to_empty = not move.board[move._to]
         return starting_rank and no_obstruction and _to_empty
 
     @staticmethod
     def front_short_valid(move: Move) -> bool:
-        _to_empty = not move.board.piece(move._to)
+        _to_empty = not move.board[move._to]
         return _to_empty
 
 
@@ -368,12 +365,11 @@ class Checks:
 
     @staticmethod
     def to_pos_in_grid(move: Move) -> bool:
-        pos = move._to
-        return max(pos) <= 7 and min(pos) >= 0
+        return max(move._to) <= 7 and min(move._to) >= 0
 
     @staticmethod
     def to_pos_empty_or_not_same_color(move: Move):
-        to_piece = move.board.piece(move._to)
+        to_piece = move.board[move._to]
         color_turn = move.board.color_turn
         return to_piece.color != color_turn
 
@@ -403,18 +399,18 @@ class Checks:
         # perp move: same row
         if x1 == x2:
             for y in range(min(y1, y2) + 1, max(y1, y2)):
-                if move.board.piece((x1, y)):
+                if move.board[(x1, y)]:
                     return False
         # perp move: same column
         if y1 == y2:
             for x in range(min(x1, x2) + 1, max(x1, x2)):
-                if move.board.piece((x, y1)):
+                if move.board[(x, y1)]:
                     return False
         # diag move
         if abs(y2 - y1) == abs(x2 - x1):
             X = range(x1, x2, -1 if x2 < x1 else 1)
             Y = range(y1, y2, -1 if y2 < y1 else 1)
             for pos in zip(X, Y):
-                if pos != move._from and move.board.piece(pos):
+                if pos != move._from and move.board[pos]:
                     return False
         return True

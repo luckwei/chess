@@ -52,6 +52,7 @@ class Root(Tk):
 
         self.setup_buttons()
         self.reset_board()
+
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
             on_click, on_enter, on_exit = self.bind_factory(pos)
@@ -70,6 +71,7 @@ class Root(Tk):
             button.bind("<Leave>", on_exit)
 
             button.grid(row=pos[0], column=pos[1])
+
     # account for empassant
     def move_piece(
         self,
@@ -77,10 +79,9 @@ class Root(Tk):
         _to: Position,
         _extra_capture: Position | None = None,
         enpassant_target: Position | None = None,
-
         reset_counter: bool = False,
     ) -> None:
-        piece = self.board.piece(_from)
+        piece = self.board[_from]
 
         self.board.remove(_from)
         self.refresh_piece(_from)
@@ -114,14 +115,14 @@ class Root(Tk):
         # iterate over board
 
     def refresh_piece(self, pos: Position) -> None:
-        piece = self.board.piece(pos)
+        piece = self.board[pos]
         self.btn(pos)["image"] = self.IMG_DICT[(piece.type, piece.color)]
 
     def bind_factory(
         self, pos: Position
     ) -> tuple[Callable[[], None], Callable[[Event], None], Callable[[Event], None]]:
         def on_click() -> None:
-            if not self.board.piece(pos):
+            if not self.board[pos]:
                 return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
@@ -148,9 +149,9 @@ class Root(Tk):
         # FIXME: After clicking there is a bug where tiles dont turn back into color
 
         def on_enter(e: Event) -> None:
-            if not self.board.piece(pos):
+            if not self.board[pos]:
                 return
-            if self.board.piece(pos).color != self.board.color_turn:
+            if self.board[pos].color != self.board.color_turn:
                 return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
@@ -170,7 +171,7 @@ class Root(Tk):
             # TODO: add method for getting button element with self.gridslaves
 
         def on_exit(e: Event) -> None:
-            if not self.board.piece(pos):
+            if not self.board[pos]:
                 return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
