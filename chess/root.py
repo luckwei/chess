@@ -10,10 +10,8 @@ from tksvg import SvgImage
 
 from .board import Board
 from .constants import PIECE_SIZE, THEME_RED, TILE_SIZE
-from .piece import Piece, PieceColor, PieceType, COLOR_TYPE
+from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
 from .types import ColorPair, Position
-
-
 
 
 class Root(Tk):
@@ -41,17 +39,16 @@ class Root(Tk):
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
-            on_click, on_enter, on_exit = self.bind_factory(pos)
-
             button = Button(
                 self,
-                bg=self.theme[sum(pos) % 2],
+                bg=self.bg(pos),
                 activebackground="white",
                 bd=0,
                 height=TILE_SIZE,
                 width=TILE_SIZE,
                 # command=on_click,
             )
+            on_click, on_enter, on_exit = self.bind_factory(pos)
             button.bind("<ButtonRelease-1>", on_click)
             button.bind("<Enter>", on_enter)
             button.bind("<Leave>", on_exit)
@@ -91,28 +88,36 @@ class Root(Tk):
 
         self.board.toggle_color_turn()
 
+    def bg(self, pos: Position) -> str:
+        return self.theme[sum(pos) %2]
+    
     def reset_board(self) -> None:
-        self.board = Board(self.theme)
+        self.board = Board()
         for pos in self.board.pieces:
             self.refresh_piece(pos)
 
+    # TODO: implement get item to take tiles
     def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
-        # iterate over board
+    
+    def reset_btn_bg(self, pos: Position) -> None:
+        self.btn(pos)["bg"] = self.bg(pos)
 
     def refresh_piece(self, pos: Position) -> None:
         piece = self.board[pos]
         self.btn(pos)["image"] = self.IMG_DICT[(piece.type, piece.color)]
-
+    # TODO: deactivate tiles that cannot move
     def bind_factory(
         self, pos: Position
     ) -> tuple[Callable[[Event], None], Callable[[Event], None], Callable[[Event], None]]:
         def on_click(e: Event) -> None:
-            if not self.board[pos]:
+            
+            if self.board[pos].color != self.board.color_turn:
                 return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
                 return
+            # TODO:Piece value here
             move = choice(valid_moves)
             self.move_piece(
                 move._from,
@@ -121,58 +126,32 @@ class Root(Tk):
                 move.enpassant_target,
                 move.reset_counter,
             )
-            flattened = [
-                btn
-                for sublist in [self.grid_slaves(*move._to) for move in valid_moves]
-                for btn in sublist
-            ]
-            for btn, move in zip(flattened, valid_moves):
-                bg = self.theme[sum(move._to) % 2]
-                btn["background"] = bg
-            # TODO: add unhighlighting here
-            # TODO: create method to find button object, refactor existing function
-
-        # FIXME: After clicking there is a bug where tiles dont turn back into color
+            
+            for move in valid_moves:
+                self.reset_btn_bg(move._to)
+                
 
         def on_enter(e: Event) -> None:
-            if not self.board[pos]:
-                return
             if self.board[pos].color != self.board.color_turn:
                 return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
-                btn = self.grid_slaves(*pos)[0]
-                btn["background"] = "#f54842"
-            # FIXME
-            # TODO: Convert clicker to event handler, add more event handlers with click in and click out
-            flattened = [
-                btn
-                for sublist in [self.grid_slaves(*move._to) for move in valid_moves]
-                for btn in sublist
-            ]
-            for btn in flattened:
-                # TODO: bring these to constants, game colors
-                btn["background"] = "white"
-            # TODO: Add hover for invalid button["bg"] == "white"
-            # TODO: add method for getting button element with self.gridslaves
+                self.btn(pos)["bg"] = "#f54842"
+
+            for move in valid_moves:
+                btn = self.btn(move._to)
+                btn["bg"] = "white"
+
+
 
         def on_exit(e: Event) -> None:
             if not self.board[pos]:
                 return
             valid_moves = self.board.get_valid_moves(pos)
             if not valid_moves:
-                btn = self.grid_slaves(*pos)[0]
-                bg = self.theme[sum(pos) % 2]
-                # TODO: get tile color property
-                btn["background"] = bg
+                self.reset_btn_bg(pos)
 
-            flattened = [
-                btn
-                for sublist in [self.grid_slaves(*move._to) for move in valid_moves]
-                for btn in sublist
-            ]
-            for btn, move in zip(flattened, valid_moves):
-                bg = self.theme[sum(move._to) % 2]
-                btn["background"] = bg
+            for move in valid_moves:
+                self.reset_btn_bg(move._to)
 
         return on_click, on_enter, on_exit
