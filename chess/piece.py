@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from ast import Str
 from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
-from typing import Literal
 
-from typing_extensions import Self
 
 from .types import Position
 
@@ -104,5 +101,5 @@ class Piece:
     def __bool__(self):
         return self.type != PieceType.EMPTY
     
-    def __eq__(self, other: Self) -> bool:
+    def __eq__(self, other: Piece) -> bool:
         return self.color == other.color and self.type == other.type

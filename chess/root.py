@@ -17,7 +17,7 @@ class Root(Tk):
     def __init__(self) -> None:
         super().__init__()
 
-        self.IMG_DICT = {
+        self.__IMG_DICT = {
             (type, color): SvgImage(
                 file=f"res/{type}_{color}.svg", scaletowidth=SIZE.PIECE
             )
@@ -55,9 +55,9 @@ class Root(Tk):
         _to: Position,
         _extra_capture: Position | None = None,
         enpassant_target: Position | None = None,
-        reset_counter: bool = False,
     ) -> None:
-        if reset_counter:
+        
+        if self[_from].type == PieceType.PAWN or self[_to]:
             self.board.move_counter = 0
 
         self[_to] = self[_from]
@@ -84,11 +84,11 @@ class Root(Tk):
 
     def __setitem__(self, pos: Position, piece: Piece) -> None:
         self.board[pos] = piece
-        self.btn(pos)["image"] = self.IMG_DICT[(piece.type, piece.color)]
+        self.btn(pos)["image"] = self.__IMG_DICT[(piece.type, piece.color)]
 
     def __delitem__(self, pos: Position) -> None:
         del self.board[pos]
-        self.btn(pos)["image"] = self.IMG_DICT[PieceType.EMPTY, PieceColor.NONE]
+        self.btn(pos)["image"] = self.__IMG_DICT[PieceType.EMPTY, PieceColor.NONE]
 
     def bg(self, pos: Position) -> str:
         return (THEME.LIGHT_TILES, THEME.DARK_TILES)[sum(pos) % 2]
@@ -103,7 +103,7 @@ class Root(Tk):
         self._board = board
         for pos in self.board.pieces:
             piece = self.board[pos]
-            self.btn(pos)["image"] = self.IMG_DICT[piece.type, piece.color]
+            self.btn(pos)["image"] = self.__IMG_DICT[piece.type, piece.color]
 
     def reset(self) -> None:
         self.board = Board()
@@ -127,12 +127,7 @@ class Root(Tk):
                 return
 
             weights = [
-                PIECE_VAL[move._to_piece.type]
-                if move._to_piece
-                else max(
-                    abs(move._to[0] - move._from[0]), abs(move._to[1] - move._from[1])
-                )
-                #TODO: move distance method or __sub__ dunder methods
+                PIECE_VAL[self[move._to].type] if self[move._to] else move.dist
                 for move in valid_moves
             ]
 
@@ -142,7 +137,6 @@ class Root(Tk):
                 move._to,
                 move._extra_capture,
                 move.enpassant_target,
-                move.reset_counter,
             )
 
             for move in valid_moves:
