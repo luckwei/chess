@@ -34,7 +34,16 @@ class Root(Tk):
         self.board = Board()
 
         self.select_mode = False
-        self.candidate_moves: list[Move] = []
+        self.candidates = []
+
+    @property
+    def candidates(self) -> list[Move]:
+        return self._candidate_moves
+
+    @candidates.setter
+    def candidates(self, lst) -> None:
+        self._candidate_moves = lst
+        self.select_mode = bool(lst)
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
@@ -81,6 +90,8 @@ class Root(Tk):
         # TODO: ALLOW player's own move, two click moves
         # record down last selected piece and button detect that selected piece and does something when clicked, else it deselects logic if click away or another piece, if click on other pieces other than highlighted ones, deselect!
         # TODO: force kill, find ALL moves, from own color, highlight available pieces
+        
+        #TODO: CHECKS WILL alert the user, refactor into check if board is checked , maybe with a color, so it can also be used for the check if king checked after position used for king checks currently
         self.board.toggle_color_turn()
 
     # WINNING LOGIC TODO
@@ -126,12 +137,15 @@ class Root(Tk):
         def on_click(e: Event) -> None:
 
             # There was a selected move previously
-            if self.select_mode:
-                for move in self.candidate_moves:
+            if self.candidates:
+                for move in self.candidates:
                     self.reset_btn_bg(move._to)
                     self.reset_btn_bg(move._from)
                 # Check all moves
-                for move in self.candidate_moves:
+                for move in self.candidates:
+                    if pos == move._from:
+                        self.candidates = []
+                        return
                     # If clicked is same as move execute it and return
                     if pos == move._to:
                         self.move_piece(
@@ -140,8 +154,7 @@ class Root(Tk):
                             move._extra_capture,
                             move.enpassant_target,
                         )
-                        self.select_mode = False
-                        self.candidate_moves = []
+                        self.candidates = []
                         return
 
                 # else erase previous hints, reset and try doing the proper way
@@ -150,14 +163,13 @@ class Root(Tk):
                 pos
             )  # might refactor to be outside of board
             if not valid_moves:
-                self.candidate_moves = []
+                self.candidates = []
                 self.select_mode = False
                 return
             self.btn(pos)["bg"] = "#f2cf1f"
             for move in valid_moves:
                 self.btn(move._to)["bg"] = "#a3e8ff"
-            self.candidate_moves = valid_moves
-            self.select_mode = True
+            self.candidates = valid_moves
 
         # default mode: nothing happens
         # -- hover mode: just showing
