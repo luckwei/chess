@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import InitVar, dataclass, field
 from itertools import product
 from math import dist
@@ -29,6 +30,7 @@ class Board:
     move_counter: int = field(init=False, default=0)
     # REcord down 50 move rule
 
+
     def __post_init__(self, fen):
         config, color_turn, *_ = fen.replace("/", "").split(" ")
 
@@ -41,8 +43,11 @@ class Board:
             if p != " ":
                 self[divmod(i, 8)] = Piece(*FEN_MAP[p])
 
+    def __iter__(self):
+        return iter(self.pieces.items())
+    
     @property
-    def other_color(self) -> PieceColor:
+    def enemy_color(self) -> PieceColor:
         return (
             PieceColor.WHITE
             if self.color_turn == PieceColor.BLACK
@@ -50,28 +55,26 @@ class Board:
         )
 
     def toggle_color_turn(self) -> None:
-        self.color_turn = self.other_color
+        self.color_turn = self.enemy_color
 
     @property
-    def own_king(self) -> Piece | None:
+    def king_pos(self) -> Position:
         return next(
             (
-                piece
-                for piece in self.pieces.values()
+                pos
+                for pos, piece in self
                 if piece == Piece(self.color_turn, PieceType.KING)
-            ),
-            None,
+            )
         )
 
     @property
-    def other_king(self) -> Piece | None:
+    def other_king(self) -> Position:
         return next(
             (
-                piece
-                for piece in self.pieces.values()
-                if piece == Piece(self.other_color, PieceType.KING)
-            ),
-            None,
+                pos
+                for pos,piece in self
+                if piece == Piece(self.enemy_color, PieceType.KING)
+            )
         )
 
     def get_valid_moves(self, pos: Position) -> list[Move]:
@@ -141,7 +144,7 @@ class Move:
 
                 moves.append(cls(_from, _to=(row + x, col + y)))
         return moves
-
+    #TODO: implement iter class
     # MOVE DIR FROM PAWN MOVES
     @classmethod
     def pincer(cls, _from: Position, dir: int) -> list[Self]:
@@ -343,14 +346,38 @@ class Checks:
 
     @staticmethod
     def king_safe_at_end(board: Board, move: Move) -> bool:
-        # check for enemy fire in king's current psotion
-        # check for enemy fire
-        # bishops and queens on the diag, rook on the verts,
-        # pawns on the near diags
-        # knights on the Ls
+        # return True
+        enemy_color = board.enemy_color
+        
+        end_board= deepcopy(board)
+        
+        
+        end_board[move._to] = end_board[move._from]
+        del end_board[move._from]
+        #TODO: moves are alright if they cant go through the walls, implement Checks.no_obstruction
+        if move._extra_capture:
+            del end_board[move._extra_capture]
+                
+        #check knights on L
+        enemy_knight = [1 for move in Move.lshapes(end_board.king_pos) if Checks.to_pos_in_grid(move) and end_board[move._to] == Piece(enemy_color, PieceType.KNIGHT)]
+        
+        
+        #check perpendiculars
+        enemy_rook_queen = [1 for move in Move.perp(end_board.king_pos) if Checks.to_pos_in_grid(move) and end_board[move._to] in (Piece(enemy_color, PieceType.ROOK), Piece(enemy_color, PieceType.QUEEN))]
+        
+        #check diagonals
+        enemy_bishop_queen = [1 for move in Move.diag(end_board.king_pos) if Checks.to_pos_in_grid(move) and end_board[move._to] in (Piece(enemy_color, PieceType.BISHOP), Piece(enemy_color, PieceType.QUEEN))]
+        
+        #check adjacent for king
+        enemy_king = [1 for move in Move.perp(end_board.king_pos, 1) + Move.diag(end_board.king_pos, 1) if Checks.to_pos_in_grid(move) and move._to == end_board.other_king]
+        
+        #check pincer for pawn
+        enemy_pawn = []
+            
+        all_enemies = enemy_knight + enemy_rook_queen + enemy_bishop_queen + enemy_king + enemy_pawn
+        
         # TODO: King check
-        king = board.own_king
-        return True
+        return not all_enemies
 
     @staticmethod
     def final(board: Board, move: Move) -> bool:
