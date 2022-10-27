@@ -95,6 +95,7 @@ class Root(Tk):
         for pos in self.board.pieces:
             self.refresh_piece(pos)
 
+    
     def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
 

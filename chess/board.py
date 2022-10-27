@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from itertools import product
 from os import stat
 from typing import Callable, Self
@@ -16,19 +16,29 @@ _Grid = dict[Position, Piece]
 
 
 def empty_board() -> _Grid:
-    return {pos: Piece() for pos in product(range(8), repeat=2)}
+    return {pos: Piece() for pos in product(range(8), range(8))}
 
 
 @dataclass
 class Board:
+    fen: InitVar[str] = Setup.START
     pieces: _Grid = field(init=False, default_factory=empty_board)
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
     enpassant_target: Position | None = field(init=False, default=None)
     move_counter: int = field(init=False, default=0)
     # REcord down 50 move rule
 
-    def __post_init__(self):
-        self.update_from_fen(Setup.START)
+    def __post_init__(self, fen):
+        config, color_turn, *_ = fen.replace("/", "").split(" ")
+        
+        self.color_turn = PieceColor.WHITE if color_turn == "w" else PieceColor.BLACK
+
+        for digit in "12345678":
+            config = config.replace(digit, " " * int(digit))
+
+        for i, p in enumerate(config):
+            if p != " ":
+                self[divmod(i, 8)] = Piece(*FEN_MAP[p])
 
     def toggle_color_turn(self):
         self.color_turn = (
@@ -37,19 +47,6 @@ class Board:
             else PieceColor.BLACK
         )
 
-    def update_from_fen(self, fen: str = Setup.START):
-        config, color_turn, *_ = fen.replace("/", "").split(" ")
-        self.color_turn = PieceColor.WHITE if color_turn == "w" else PieceColor.BLACK
-
-        for digit in "12345678":
-            config = config.replace(digit, " " * int(digit))
-
-        for i, p in enumerate(config):
-            if p == " ":
-                continue
-            self[divmod(i,8)] = Piece(*FEN_MAP[p])
-
-    # Slicing for indexing __getitem__
 
     @property
     def own_king(self) -> Piece | None:
@@ -81,11 +78,12 @@ class Board:
         rows = ["".join(pieces_str[i : i + 8]) for i in range(0, 64, 8)]
         return "\n".join(rows)
 
-
     def __delitem__(self, pos: Position) -> None:
         self[pos] = Piece()
+
     def __setitem__(self, pos: Position, piece):
         self.pieces[pos] = piece
+
     def __getitem__(self, pos: Position) -> Piece:
         return self.pieces[pos]
 
@@ -279,7 +277,6 @@ def get_moves_king(board: Board, pos: Position) -> list[Move]:
     return capture_moves if capture_moves else valid_moves
 
 
-
 ValidMoveCalculator = Callable[[Board, Position], list[Move]]
 
 MOVE_CALCULATORS: dict[PieceType, ValidMoveCalculator] = {
@@ -348,7 +345,7 @@ class Checks:
         # bishops and queens on the diag, rook on the verts,
         # pawns on the near diags
         # knights on the Ls
-        #TODO: King check
+        # TODO: King check
         board = move.board
         king = board.own_king
         return True
