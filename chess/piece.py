@@ -101,3 +101,5 @@ class Piece:
 
     def __bool__(self):
         return self.type != PieceType.EMPTY
+    
+    #TODO: def equality

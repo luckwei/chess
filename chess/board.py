@@ -30,7 +30,7 @@ class Board:
 
     def __post_init__(self, fen):
         config, color_turn, *_ = fen.replace("/", "").split(" ")
-        
+
         self.color_turn = PieceColor.WHITE if color_turn == "w" else PieceColor.BLACK
 
         for digit in "12345678":
@@ -46,7 +46,6 @@ class Board:
             if self.color_turn == PieceColor.BLACK
             else PieceColor.BLACK
         )
-
 
     @property
     def own_king(self) -> Piece | None:
@@ -78,14 +77,14 @@ class Board:
         rows = ["".join(pieces_str[i : i + 8]) for i in range(0, 64, 8)]
         return "\n".join(rows)
 
-    def __delitem__(self, pos: Position) -> None:
-        self[pos] = Piece()
+    def __getitem__(self, pos: Position) -> Piece:
+        return self.pieces[pos]
 
     def __setitem__(self, pos: Position, piece):
         self.pieces[pos] = piece
 
-    def __getitem__(self, pos: Position) -> Piece:
-        return self.pieces[pos]
+    def __delitem__(self, pos: Position) -> None:
+        self[pos] = Piece()
 
 
 @dataclass
