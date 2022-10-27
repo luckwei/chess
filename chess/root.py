@@ -31,7 +31,7 @@ class Root(Tk):
         self.bind("<q>", lambda e: self.reset_board())
 
         self.setup_buttons()
-        self.reset_board() 
+        self.reset_board()
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
@@ -58,17 +58,12 @@ class Root(Tk):
         enpassant_target: Position | None = None,
         reset_counter: bool = False,
     ) -> None:
-        piece = self.board[_from]
 
-        del self.board[_from]
-        self.refresh_piece(_from)
-
-        self.board[_to]=Piece(piece.color, piece.type)
-        self.refresh_piece(_to)
+        self[_to] = self[_from]
+        del self[_from]
 
         if _extra_capture:
-            del self.board[_extra_capture]
-            self.refresh_piece(_extra_capture)
+            del self[_extra_capture]
 
         self.board.enpassant_target = enpassant_target
 
@@ -87,6 +82,17 @@ class Root(Tk):
         # TODO: force kill, find ALL moves, from own color, highlight available pieces
         self.board.toggle_color_turn()
 
+    def __getitem__(self, pos: Position) -> Piece:
+        return self.board[pos]
+
+    def __setitem__(self, pos: Position, piece: Piece) -> None:
+        self.board[pos] = piece
+        self.refresh_piece(pos)
+
+    def __delitem__(self, pos: Position) -> None:
+        del self.board[pos]
+        self.refresh_piece(pos)
+
     def bg(self, pos: Position) -> str:
         return (THEME.LIGHT_TILES, THEME.DARK_TILES)[sum(pos) % 2]
 
@@ -95,7 +101,6 @@ class Root(Tk):
         for pos in self.board.pieces:
             self.refresh_piece(pos)
 
-    
     def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
 
