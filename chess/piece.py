@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum, StrEnum, auto
-
-
-from .types import Position
+from enum import StrEnum, auto
 
 
 class PieceType(StrEnum):
@@ -79,7 +76,7 @@ PIECE_VAL = {
     PieceType.BISHOP: 3,
     PieceType.ROOK: 5,
     PieceType.QUEEN: 9,
-    PieceType.KING: 10,
+    PieceType.KING: 4,
     # Generally stronger than bishop/knight in end game (4)
     # But in killer chess has to be worth more than the queen (10)
 }

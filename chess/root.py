@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 from itertools import product
-from random import choices
-from tkinter import Button, Event, Tk, Widget
-from typing import Any, Callable
+from tkinter import GROOVE, Button, Event, Tk, Widget
+from typing import Callable
 
 from tksvg import SvgImage
 
 from .board import Board, Move
 from .constants import SIZE, THEME
-from .piece import COLOR_TYPE, PIECE_VAL, Piece, PieceColor, PieceType
+from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
 from .types import Position
 
 
 class Root(Tk):
     def __init__(self) -> None:
         super().__init__()
+
+        self.pointer_image = SvgImage(file="res/circle.svg", scaletowidth=20)
 
         self.__IMG_DICT = {
             (type, color): SvgImage(
@@ -35,15 +36,20 @@ class Root(Tk):
 
         self.select_mode = False
         self.candidates = []
+        self.preview_candidates = []
 
     @property
     def candidates(self) -> list[Move]:
-        return self._candidate_moves
+        return self._candidates
 
     @candidates.setter
-    def candidates(self, lst) -> None:
-        self._candidate_moves = lst
-        self.select_mode = bool(lst)
+    def candidates(self, moves) -> None:
+        self._candidates = moves
+        # self.select_mode = bool(moves)
+
+    @candidates.deleter
+    def candidates(self) -> None:
+        self.candidates = []
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
@@ -52,6 +58,8 @@ class Root(Tk):
                 bg=self.bg(pos),
                 activebackground=THEME.ACTIVE_BG,
                 bd=0,
+                relief=GROOVE,
+                overrelief=GROOVE,
                 height=SIZE.TILE,
                 width=SIZE.TILE,
             )
@@ -87,11 +95,10 @@ class Root(Tk):
             ...  # TODO:draw! Ending game, check or checkmate
         # TODO: GAME WIN/GAME LOSS/GAME DRAW!
         # TODO:UNDO MOVE
-        # TODO: ALLOW player's own move, two click moves
-        # record down last selected piece and button detect that selected piece and does something when clicked, else it deselects logic if click away or another piece, if click on other pieces other than highlighted ones, deselect!
+
         # TODO: force kill, find ALL moves, from own color, highlight available pieces
-        
-        #TODO: CHECKS WILL alert the user, refactor into check if board is checked , maybe with a color, so it can also be used for the check if king checked after position used for king checks currently
+
+        # TODO: CHECKS WILL alert the user, refactor into check if board is checked , maybe with a color, so it can also be used for the check if king checked after position used for king checks currently
         self.board.toggle_color_turn()
 
     # WINNING LOGIC TODO
@@ -166,34 +173,41 @@ class Root(Tk):
                 self.candidates = []
                 self.select_mode = False
                 return
-            self.btn(pos)["bg"] = "#f2cf1f"
+            self.btn(pos)["bg"] = THEME.ACTIVE_BG
             for move in valid_moves:
-                self.btn(move._to)["bg"] = "#a3e8ff"
+                if self[move._to]:
+                    self.btn(move._to)["bg"] = THEME.VALID_CAPTURE
+                else:
+                    self.btn(move._to)["bg"] = (
+                        THEME.VALID_HIGHLIGHT_DARK
+                        if sum(move._to) % 2
+                        else THEME.VALID_HIGHLIGHT_LIGHT
+                    )
             self.candidates = valid_moves
 
-        # default mode: nothing happens
-        # -- hover mode: just showing
-        # selected piece mode: if there are valid moves, and click, enter this mode -> store candidate moves in root variable and light them up maybe in a different color like yellow "#f2cf1f"
-        # if candidatemoves is not None, deactivate hover mode -> do next depending on where clicked:
-        # if tile is blank or invalid enemy: reset candidate moves
-        # if another own piece: reset candidate moves then check if  have candidate moves again
-        # reset candidate moves on clicks on blank tile or  if clicked on another own piece -> reset again then run it correct piece,
-
         def on_enter(e: Event) -> None:
-            if self.select_mode:
+            if self.candidates:
                 return
             if self[pos].color != self.board.color_turn:
                 return
             valid_moves = self.board.get_valid_moves(pos)
-            if not valid_moves:
-                self.btn(pos)["bg"] = THEME.INVALID_TILE
+            # if not valid_moves:
+            #     self.btn(pos)["bg"] = THEME.INVALID_TILE
 
             for move in valid_moves:
-                btn = self.btn(move._to)
-                btn["bg"] = THEME.VALID_HIGHLIGHT
+                if self[move._to]:
+                    self.btn(move._to)["bg"] = THEME.VALID_CAPTURE
+                else:
+                    self.btn(move._to)["bg"] = (
+                        THEME.VALID_HIGHLIGHT_DARK
+                        if sum(move._to) % 2
+                        else THEME.VALID_HIGHLIGHT_LIGHT
+                    )
+
+                    # self.btn(move._to)["image"] = self.pointer_image
 
         def on_exit(e: Event) -> None:
-            if self.select_mode:
+            if self.candidates:
                 return
             if not self[pos]:
                 return
