@@ -354,7 +354,7 @@ class Checks:
         
         end_board[move._to] = end_board[move._from]
         del end_board[move._from]
-        #TODO: moves are alright if they cant go through the walls, implement Checks.no_obstruction
+
         if move._extra_capture:
             del end_board[move._extra_capture]
                 
@@ -363,13 +363,13 @@ class Checks:
         
         
         #check perpendiculars
-        enemy_rook_queen = [1 for move in Move.perp(end_board.king_pos) if Checks.to_pos_in_grid(move) and end_board[move._to] in (Piece(enemy_color, PieceType.ROOK), Piece(enemy_color, PieceType.QUEEN))]
+        enemy_rook_queen = [1 for move in Move.perp(end_board.king_pos) if Checks.to_pos_in_grid(move) and end_board[move._to] in (Piece(enemy_color, PieceType.ROOK), Piece(enemy_color, PieceType.QUEEN)) and Checks.no_obstruction(end_board, move)]
         
         #check diagonals
-        enemy_bishop_queen = [1 for move in Move.diag(end_board.king_pos) if Checks.to_pos_in_grid(move) and end_board[move._to] in (Piece(enemy_color, PieceType.BISHOP), Piece(enemy_color, PieceType.QUEEN))]
+        enemy_bishop_queen = [1 for move in Move.diag(end_board.king_pos) if Checks.to_pos_in_grid(move) and end_board[move._to] in (Piece(enemy_color, PieceType.BISHOP), Piece(enemy_color, PieceType.QUEEN)) and Checks.no_obstruction(end_board, move)]
         
         #check adjacent for king
-        enemy_king = [1 for move in Move.perp(end_board.king_pos, 1) + Move.diag(end_board.king_pos, 1) if Checks.to_pos_in_grid(move) and move._to == end_board.other_king]
+        enemy_king = [1 for move in Move.perp(end_board.king_pos, 1) + Move.diag(end_board.king_pos, 1) if Checks.to_pos_in_grid(move) and move._to == end_board.other_king ]
         
         #check pincer for pawn
         enemy_pawn = []
