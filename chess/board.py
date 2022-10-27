@@ -104,18 +104,6 @@ class Move:
     def dist(self) -> float:
         return dist(self._from, self._to)
 
-    # @property
-    # def from_piece(self) -> Piece:
-    #     return self.board[self._from]
-
-    # @property
-    # def to_piece(self) -> Piece:
-    #     return self.board[self._to]
-
-    # @property
-    # def color_turn(self) -> PieceColor:
-    #     return self.board.color_turn
-
     @classmethod
     def diag(cls, _from: Position, n=7) -> list[Self]:
         row, col = _from
@@ -182,11 +170,13 @@ class Move:
     def front_long(cls, _from: Position, dir: int) -> list[Self]:
         row, col = _from
 
-        return [cls(
-            _from,
-            _to := (row + 2 * dir, col),
-            enpassant_target=_to,
-        )]
+        return [
+            cls(
+                _from,
+                _to := (row + 2 * dir, col),
+                enpassant_target=_to,
+            )
+        ]
 
 
 def get_moves_empty(*args, **kwargs) -> list[Move]:
@@ -294,20 +284,16 @@ class PawnCheck:
             return False
         if _to_piece.color != _from_piece.color:
             return True
-        #TODO: equality might be color instead of both color and piece
         return False
 
     @staticmethod
     def front_long_valid(board: Board, move: Move) -> bool:
-        if board[move._from].color == PieceColor.WHITE:
-            starting_rank = move._from[0] == 6
-            no_obstruction = not board[(5, move._from[1])]
-        else:
-            starting_rank = move._from[0] == 1
-            no_obstruction = not board[(2, move._from[1])]
 
-        _to_empty = not board[move._to]
-        return starting_rank and no_obstruction and _to_empty
+        starting_rank = move._from[0] == (
+            6 if board.color_turn == PieceColor.WHITE else 1
+        )
+        to_is_empty = not board[move._to]
+        return starting_rank and to_is_empty
 
     @staticmethod
     def front_short_valid(board: Board, move: Move) -> bool:
@@ -317,27 +303,16 @@ class PawnCheck:
 
 class Checks:
     @staticmethod
+    def to_pos_in_grid(move: Move) -> bool:
+        return max(move._to) <= 7 and min(move._to) >= 0
+
+    @staticmethod
     def is_color_turn(board: Board, move: Move) -> bool:
         return board.color_turn == board[move._from].color
 
     @staticmethod
-    def to_pos_in_grid(board: Board, move: Move) -> bool:
-        return max(move._to) <= 7 and min(move._to) >= 0
-
-    @staticmethod
-    def to_pos_empty_or_not_same_color(board: Board, move: Move) -> bool:
+    def to_empty_or_enemy(board: Board, move: Move) -> bool:
         return board[move._to].color != board.color_turn
-
-    @staticmethod
-    def king_not_checked_on_next_move(board: Board, move: Move) -> bool:
-        # check for enemy fire in king's current psotion
-        # check for enemy fire
-        # bishops and queens on the diag, rook on the verts,
-        # pawns on the near diags
-        # knights on the Ls
-        # TODO: King check
-        king = board.own_king
-        return True
 
     @staticmethod
     def no_obstruction(board: Board, move: Move) -> bool:
@@ -371,11 +346,22 @@ class Checks:
         return True
 
     @staticmethod
+    def king_safe_at_end(board: Board, move: Move) -> bool:
+        # check for enemy fire in king's current psotion
+        # check for enemy fire
+        # bishops and queens on the diag, rook on the verts,
+        # pawns on the near diags
+        # knights on the Ls
+        # TODO: King check
+        king = board.own_king
+        return True
+
+    @staticmethod
     def final(board: Board, move: Move) -> bool:
         return (
-            Checks.to_pos_in_grid(board, move)
-            and Checks.to_pos_empty_or_not_same_color(board, move)
-            and Checks.king_not_checked_on_next_move(board, move)
-            and Checks.no_obstruction(board, move)
+            Checks.to_pos_in_grid(move)
             and Checks.is_color_turn(board, move)
+            and Checks.to_empty_or_enemy(board, move)
+            and Checks.no_obstruction(board, move)
+            and Checks.king_safe_at_end(board, move)
         )

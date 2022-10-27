@@ -30,6 +30,7 @@ class Root(Tk):
         self.bind("<Escape>", lambda e: self.quit())
         self.bind("<q>", lambda e: self.reset())
 
+        self.setup_buttons()
         self.board = Board()
 
     def setup_buttons(self):
@@ -99,10 +100,8 @@ class Root(Tk):
 
     @board.setter
     def board(self, board: Board) -> None:
-        self.setup_buttons()
         self._board = board
-        for pos in self.board.pieces:
-            piece = self.board[pos]
+        for pos, piece in self.board.pieces.items():
             self.btn(pos)["image"] = self.__IMG_DICT[piece.type, piece.color]
 
     def reset(self) -> None:
