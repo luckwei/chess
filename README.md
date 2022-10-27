@@ -3,6 +3,19 @@ Building a not-so-normal Chess App with tkinter
 
 # UPDATE LOG
 
+## 28/10/22 Almost there...
+Game logic has been reset to normal chess, where the player can select their pieces and their moves, except.. for castling. UI is also slightly richer.
+
+### Changes
+#### Game Logic
+1. Implemented Legal Move checks! Very important and was indeed rather difficult in comparison.
+2. Back to normal chess, no priorities on captures over movement
+
+#### UI/UX
+1. Removed invalid piece highlight for now for succinctness
+2. Selection feature implemented, click-click mode
+3. Highlights are also differing between capture, moving to light and moving to dark squares. Neat!
+
 ## 27/10/22 WOW Improvmenets!
 Game logic has been changed to -SerialKiller Chess- where pieces must prioritise capturing enemy pieces over usual movement. If multiple targets are available, kills one at random, same goes for movement.
 
