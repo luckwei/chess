@@ -88,7 +88,7 @@ PIECE_VAL = {
 
 @dataclass
 class Piece:
-    pos: Position
+    # pos: Position
     color: PieceColor = PieceColor.NONE
     type: PieceType = PieceType.EMPTY
 

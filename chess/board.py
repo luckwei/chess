@@ -16,7 +16,7 @@ _Grid = dict[Position, Piece]
 
 
 def empty_board() -> _Grid:
-    return {pos: Piece(pos) for pos in product(range(8), repeat=2)}
+    return {pos: Piece() for pos in product(range(8), repeat=2)}
 
 
 @dataclass
@@ -47,7 +47,7 @@ class Board:
         for i, p in enumerate(config):
             if p == " ":
                 continue
-            self.place(Piece(divmod(i, 8), *FEN_MAP[p]))
+            self[divmod(i,8)] = Piece(*FEN_MAP[p])
 
     # Slicing for indexing __getitem__
 
@@ -81,12 +81,11 @@ class Board:
         rows = ["".join(pieces_str[i : i + 8]) for i in range(0, 64, 8)]
         return "\n".join(rows)
 
-    def place(self, piece: Piece) -> None:
-        self.pieces[piece.pos] = piece
 
-    def remove(self, pos: Position) -> None:
-        self.place(Piece(pos))
-
+    def __delitem__(self, pos: Position) -> None:
+        self[pos] = Piece()
+    def __setitem__(self, pos: Position, piece):
+        self.pieces[pos] = piece
     def __getitem__(self, pos: Position) -> Piece:
         return self.pieces[pos]
 

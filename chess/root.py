@@ -17,22 +17,21 @@ class Root(Tk):
     def __init__(self) -> None:
         super().__init__()
 
-        self.title("CHESS")
-        self.iconbitmap("res/chess.ico")
-
         self.IMG_DICT = {
             (type, color): SvgImage(
                 file=f"res/{type}_{color}.svg", scaletowidth=SIZE.PIECE
             )
             for color, type in COLOR_TYPE
         }
+        self.title("CHESS")
+        self.iconbitmap("res/chess.ico")
 
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
         self.bind("<q>", lambda e: self.reset_board())
 
         self.setup_buttons()
-        self.reset_board()
+        self.reset_board() 
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
@@ -61,14 +60,14 @@ class Root(Tk):
     ) -> None:
         piece = self.board[_from]
 
-        self.board.remove(_from)
+        del self.board[_from]
         self.refresh_piece(_from)
 
-        self.board.place(Piece(_to, piece.color, piece.type))
+        self.board[_to]=Piece(piece.color, piece.type)
         self.refresh_piece(_to)
 
         if _extra_capture:
-            self.board.remove(_extra_capture)
+            del self.board[_extra_capture]
             self.refresh_piece(_extra_capture)
 
         self.board.enpassant_target = enpassant_target
@@ -80,6 +79,7 @@ class Root(Tk):
         if self.board.move_counter >= 20:
             print("20 moves since last capture or pawn move!")
             ...  # TODO:draw! Ending game, check or checkmate
+        # TODO: PRIVATIZE METHOD
         # TODO: GAME WIN/GAME LOSS/GAME DRAW!
         # TODO:UNDO MOVE
         # TODO: ALLOW player's own move, two click moves
