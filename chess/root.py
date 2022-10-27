@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from tksvg import SvgImage
 
-from .board import Board
+from .board import Board, Move
 from .constants import SIZE, THEME
 from .piece import COLOR_TYPE, PIECE_VAL, Piece, PieceColor, PieceType
 from .types import Position
@@ -33,6 +33,9 @@ class Root(Tk):
         self.setup_buttons()
         self.board = Board()
 
+        self.select_mode = False
+        self.candidate_moves: list[Move] = []
+
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
             button = Button(
@@ -57,7 +60,7 @@ class Root(Tk):
         _extra_capture: Position | None = None,
         enpassant_target: Position | None = None,
     ) -> None:
-        
+
         if self[_from].type == PieceType.PAWN or self[_to]:
             self.board.move_counter = 0
 
@@ -80,6 +83,8 @@ class Root(Tk):
         # TODO: force kill, find ALL moves, from own color, highlight available pieces
         self.board.toggle_color_turn()
 
+    # WINNING LOGIC TODO
+    # winning logic: if list of get all moves where getall moves = find all pieces of our color and combine their valid moves is False -> color_turn loses / other_color wins -> need a pop up with label text, maybe button to reset board, closes the popup too and invokes the reset board
     def __getitem__(self, pos: Position) -> Piece:
         return self.board[pos]
 
@@ -119,29 +124,52 @@ class Root(Tk):
         Callable[[Event], None], Callable[[Event], None], Callable[[Event], None]
     ]:
         def on_click(e: Event) -> None:
-            if self[pos].color != self.board.color_turn:
-                return
-            valid_moves = self.board.get_valid_moves(pos)
+
+            # There was a selected move previously
+            if self.select_mode:
+                for move in self.candidate_moves:
+                    self.reset_btn_bg(move._to)
+                    self.reset_btn_bg(move._from)
+                # Check all moves
+                for move in self.candidate_moves:
+                    # If clicked is same as move execute it and return
+                    if pos == move._to:
+                        self.move_piece(
+                            move._from,
+                            move._to,
+                            move._extra_capture,
+                            move.enpassant_target,
+                        )
+                        self.select_mode = False
+                        self.candidate_moves = []
+                        return
+
+                # else erase previous hints, reset and try doing the proper way
+
+            valid_moves = self.board.get_valid_moves(
+                pos
+            )  # might refactor to be outside of board
             if not valid_moves:
+                self.candidate_moves = []
+                self.select_mode = False
                 return
-
-            weights = [
-                PIECE_VAL[self[move._to].type] if self[move._to] else move.dist
-                for move in valid_moves
-            ]
-
-            move = choices(valid_moves, weights)[0]
-            self.move_piece(
-                move._from,
-                move._to,
-                move._extra_capture,
-                move.enpassant_target,
-            )
-
+            self.btn(pos)["bg"] = "#f2cf1f"
             for move in valid_moves:
-                self.reset_btn_bg(move._to)
+                self.btn(move._to)["bg"] = "#a3e8ff"
+            self.candidate_moves = valid_moves
+            self.select_mode = True
+
+        # default mode: nothing happens
+        # -- hover mode: just showing
+        # selected piece mode: if there are valid moves, and click, enter this mode -> store candidate moves in root variable and light them up maybe in a different color like yellow "#f2cf1f"
+        # if candidatemoves is not None, deactivate hover mode -> do next depending on where clicked:
+        # if tile is blank or invalid enemy: reset candidate moves
+        # if another own piece: reset candidate moves then check if  have candidate moves again
+        # reset candidate moves on clicks on blank tile or  if clicked on another own piece -> reset again then run it correct piece,
 
         def on_enter(e: Event) -> None:
+            if self.select_mode:
+                return
             if self[pos].color != self.board.color_turn:
                 return
             valid_moves = self.board.get_valid_moves(pos)
@@ -153,6 +181,8 @@ class Root(Tk):
                 btn["bg"] = THEME.VALID_HIGHLIGHT
 
         def on_exit(e: Event) -> None:
+            if self.select_mode:
+                return
             if not self[pos]:
                 return
             valid_moves = self.board.get_valid_moves(pos)
