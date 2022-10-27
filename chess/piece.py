@@ -97,6 +97,7 @@ class Piece:
 
     def __bool__(self):
         return self.type != PieceType.EMPTY
+
     def __eq__(self, __o: object) -> bool:
         if isinstance(__o, Piece):
             return self.color == __o.color and self.type == __o.type
@@ -105,4 +106,3 @@ class Piece:
         if isinstance(__o, PieceColor):
             return self.color == __o
         return False
-
