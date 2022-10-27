@@ -224,7 +224,7 @@ def get_moves_rook(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.perp(pos) if Checks.final(board, move)]
     capture_moves = [move for move in valid_moves if board[move._to]]
-
+    return valid_moves
     return capture_moves if capture_moves else valid_moves
 
 
@@ -232,6 +232,7 @@ def get_moves_knight(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.lshapes(pos) if Checks.final(board, move)]
     capture_moves = [move for move in valid_moves if board[move._to]]
+    return valid_moves
 
     return capture_moves if capture_moves else valid_moves
 
@@ -240,6 +241,7 @@ def get_moves_bishop(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.diag(pos) if Checks.final(board, move)]
     capture_moves = [move for move in valid_moves if board[move._to]]
+    return valid_moves
 
     return capture_moves if capture_moves else valid_moves
 
@@ -249,6 +251,7 @@ def get_moves_queen(board: Board, pos: Position) -> list[Move]:
     all_moves = Move.diag(pos) + Move.perp(pos)
     valid_moves = [move for move in all_moves if Checks.final(board, move)]
     capture_moves = [move for move in valid_moves if board[move._to]]
+    return valid_moves
 
     return capture_moves if capture_moves else valid_moves
 
@@ -258,7 +261,7 @@ def get_moves_king(board: Board, pos: Position) -> list[Move]:
     all_moves = Move.diag(pos, 1) + Move.perp(pos, 1)
     valid_moves = [move for move in all_moves if Checks.final(board, move)]
     capture_moves = [move for move in valid_moves if board[move._to]]
-
+    return valid_moves
     return capture_moves if capture_moves else valid_moves
 
 
