@@ -45,7 +45,10 @@ class Board:
 
     def __iter__(self):
         return iter(self.pieces.items())
-    
+    @property
+    def dir(self) -> int:
+        return -1 if self.color_turn == PieceColor.WHITE else 1
+
     @property
     def enemy_color(self) -> PieceColor:
         return (
@@ -144,8 +147,7 @@ class Move:
 
                 moves.append(cls(_from, _to=(row + x, col + y)))
         return moves
-    #TODO: implement iter class
-    # MOVE DIR FROM PAWN MOVES
+
     @classmethod
     def pincer(cls, _from: Position, dir: int) -> list[Self]:
         row, col = _from
@@ -181,7 +183,7 @@ class Move:
             )
         ]
 
-
+        #TODO: Dont allow move if mouse release was away from tile
 def get_moves_empty(*args, **kwargs) -> list[Move]:
     return []
 
@@ -372,11 +374,10 @@ class Checks:
         enemy_king = [1 for move in Move.perp(end_board.king_pos, 1) + Move.diag(end_board.king_pos, 1) if Checks.to_pos_in_grid(move) and move._to == end_board.other_king ]
         
         #check pincer for pawn
-        enemy_pawn = []
+        enemy_pawn = [1 for move in Move.pincer(end_board.king_pos, board.dir) if Checks.to_pos_in_grid(move) and end_board[move._to] == Piece(enemy_color, PieceType.PAWN)]
             
         all_enemies = enemy_knight + enemy_rook_queen + enemy_bishop_queen + enemy_king + enemy_pawn
         
-        # TODO: King check
         return not all_enemies
 
     @staticmethod
