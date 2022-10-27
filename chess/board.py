@@ -215,7 +215,6 @@ def get_moves_pawn(board: Board, pos: Position) -> list[Move]:
     return capture_moves if capture_moves else all_moves
 
 
-# TODO: capture or kill lists
 def get_moves_rook(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.perp(pos) if Checks.final(board, move)]
@@ -278,11 +277,9 @@ class PawnCheck:
 
     @staticmethod
     def pincer_valid(board: Board, move: Move) -> bool:
-        _from_piece = board[move._from]
-        _to_piece = board[move._to]
-        if not _to_piece:
+        if not board[move._to]:
             return False
-        if _to_piece.color != _from_piece.color:
+        if board[move._to].color != board[move._from].color:
             return True
         return False
 
@@ -297,8 +294,8 @@ class PawnCheck:
 
     @staticmethod
     def front_short_valid(board: Board, move: Move) -> bool:
-        _to_empty = not board[move._to]
-        return _to_empty
+        to_is_empty = not board[move._to]
+        return to_is_empty
 
 
 class Checks:
@@ -316,34 +313,33 @@ class Checks:
 
     @staticmethod
     def no_obstruction(board: Board, move: Move) -> bool:
-        x1, y1 = move._from
-        x2, y2 = move._to
+        x_from, y_from = move._from
+        x_to, y_to = move._to
 
-        # adjacent pieces and knights has no obstruction
-        if (
-            max(abs(x2 - x1), abs(y2 - y1)) == 1
-            or board[move._from].type == PieceType.KNIGHT
-        ):
+        X = range(x_from, x_to, 1 if x_to > x_from else -1)
+        Y = range(y_from, y_to, 1 if y_to > y_from else -1)
+
+        # short moves and knights have no obstruction
+        if min(len(X), len(Y)) == 1:
             return True
 
-        # perp move: same row
-        if x1 == x2:
-            for y in range(min(y1, y2) + 1, max(y1, y2)):
-                if board[(x1, y)]:
-                    return False
-        # perp move: same column
-        if y1 == y2:
-            for x in range(min(x1, x2) + 1, max(x1, x2)):
-                if board[(x, y1)]:
-                    return False
-        # diag move
-        if abs(y2 - y1) == abs(x2 - x1):
-            X = range(x1, x2, -1 if x2 < x1 else 1)
-            Y = range(y1, y2, -1 if y2 < y1 else 1)
-            for pos in zip(X, Y):
-                if pos != move._from and board[pos]:
-                    return False
-        return True
+        # If both exist, diag move
+        if X and Y:
+            obstructions = [1 for pos in zip(X, Y) if pos != move._from and board[pos]]
+
+        # If x exists, perp col, same column
+        elif X:
+            obstructions = [
+                1 for x in X if (x, y_from) != move._from and board[x, y_from]
+            ]
+
+        # Else y exists, perp col, same row
+        else:
+            obstructions = [
+                1 for y in Y if (x_from, y) != move._from and board[x_from, y]
+            ]
+
+        return not obstructions
 
     @staticmethod
     def king_safe_at_end(board: Board, move: Move) -> bool:
