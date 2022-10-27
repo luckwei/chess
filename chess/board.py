@@ -40,12 +40,16 @@ class Board:
             if p != " ":
                 self[divmod(i, 8)] = Piece(*FEN_MAP[p])
 
-    def toggle_color_turn(self):
-        self.color_turn = (
+    @property
+    def other_color(self) -> PieceColor:
+        return (
             PieceColor.WHITE
             if self.color_turn == PieceColor.BLACK
             else PieceColor.BLACK
         )
+
+    def toggle_color_turn(self) -> None:
+        self.color_turn = self.other_color
 
     @property
     def own_king(self) -> Piece | None:
@@ -53,7 +57,7 @@ class Board:
             (
                 piece
                 for piece in self.pieces.values()
-                if piece.type == PieceType.KING and piece.color == self.color_turn
+                if piece == Piece(self.color_turn, PieceType.KING)
             ),
             None,
         )
@@ -64,7 +68,7 @@ class Board:
             (
                 piece
                 for piece in self.pieces.values()
-                if piece.type == PieceType.KING and piece.color != self.color_turn
+                if piece == Piece(self.other_color, PieceType.KING)
             ),
             None,
         )
@@ -234,6 +238,7 @@ def get_moves_pawn(board: Board, pos: Position) -> list[Move]:
     return capture_moves if capture_moves else all_moves
 
 
+# TODO: capture or kill lists
 def get_moves_rook(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.perp(board, pos) if move.valid]

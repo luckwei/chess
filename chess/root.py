@@ -132,6 +132,7 @@ class Root(Tk):
                 else max(
                     abs(move._to[0] - move._from[0]), abs(move._to[1] - move._from[1])
                 )
+                #TODO: move distance method or __sub__ dunder methods
                 for move in valid_moves
             ]
 

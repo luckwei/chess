@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
 from typing import Literal
 
+from typing_extensions import Self
+
 from .types import Position
 
 
@@ -102,4 +104,5 @@ class Piece:
     def __bool__(self):
         return self.type != PieceType.EMPTY
     
-    #TODO: def equality
+    def __eq__(self, other: Self) -> bool:
+        return self.color == other.color and self.type == other.type
