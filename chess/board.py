@@ -15,20 +15,27 @@ from .setup import Setup
 from .types import Position
 
 _Grid = dict[Position, Piece]
+_Flags = dict[PieceColor, tuple[bool, bool]]
 
 
 def empty_board() -> _Grid:
     return {pos: Piece() for pos in product(range(8), range(8))}
 
+def castling_flags_initial() -> _Flags:
+    return {
+        PieceColor.WHITE: (True, True),
+        PieceColor.BLACK: (True, True),
+    }
+    
 
 @dataclass
 class Board:
     fen: InitVar[str] = Setup.START
-    pieces: _Grid = field(init=False, default_factory=empty_board)
     color_turn: PieceColor = field(init=False, default=PieceColor.WHITE)
     enpassant_target: Position | None = field(init=False, default=None)
+    pieces: _Grid = field(init=False, default_factory=empty_board)
     move_counter: int = field(init=False, default=0)
-    # REcord down 50 move rule
+    castling_flags:  _Flags= field(init=False, default_factory=castling_flags_initial)
 
     def __post_init__(self, fen):
         config, color_turn, *_ = fen.replace("/", "").split(" ")
@@ -101,85 +108,85 @@ class Board:
 @dataclass
 class Move:
     # board: Board
-    _from: Position
-    _to: Position
-    _extra_capture: Position | None = None
-    enpassant_target: Position | None = None
+    frm: Position
+    to: Position
+    extra_capture: Position | None = None
+    enpassant_trgt: Position | None = None
 
     @property
     def dist(self) -> float:
-        return dist(self._from, self._to)
+        return dist(self.frm, self.to)
 
     @classmethod
-    def diag(cls, _from: Position, n=7) -> list[Self]:
-        row, col = _from
+    def diag(cls, frm: Position, n=7) -> list[Self]:
+        row, col = frm
         moves = []
         for i in range(1, n + 1):
-            NE = cls(_from, _to=(row + i, col + i))
-            NW = cls(_from, _to=(row + i, col - i))
-            SE = cls(_from, _to=(row - i, col + i))
-            SW = cls(_from, _to=(row - i, col - i))
+            NE = cls(frm, to=(row + i, col + i))
+            NW = cls(frm, to=(row + i, col - i))
+            SE = cls(frm, to=(row - i, col + i))
+            SW = cls(frm, to=(row - i, col - i))
             moves.extend([NE, NW, SE, SW])
 
         return moves
 
     @classmethod
-    def perp(cls, _from: Position, n=7) -> list[Self]:
-        row, col = _from
+    def perp(cls, frm: Position, n=7) -> list[Self]:
+        row, col = frm
         moves = []
         for i in range(1, n + 1):
-            N = cls(_from, _to=(row + i, col))
-            S = cls(_from, _to=(row - i, col))
-            E = cls(_from, _to=(row, col + i))
-            W = cls(_from, _to=(row, col - i))
+            N = cls(frm, to=(row + i, col))
+            S = cls(frm, to=(row - i, col))
+            E = cls(frm, to=(row, col + i))
+            W = cls(frm, to=(row, col - i))
             moves.extend([N, S, E, W])
 
         return moves
 
     @classmethod
-    def lshapes(cls, _from: Position) -> list[Self]:
-        row, col = _from
+    def lshapes(cls, frm: Position) -> list[Self]:
+        row, col = frm
 
         moves = []
         for quadrant in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
             for magnitude in [(1, 2), (2, 1)]:
                 x, y = np.multiply(quadrant, magnitude)
 
-                moves.append(cls(_from, _to=(row + x, col + y)))
+                moves.append(cls(frm, to=(row + x, col + y)))
         return moves
 
     @classmethod
-    def pincer(cls, _from: Position, dir: int) -> list[Self]:
-        row, col = _from
+    def pincer(cls, frm: Position, dir: int) -> list[Self]:
+        row, col = frm
 
-        L = cls(_from, _to=(row + dir, col + 1))
-        R = cls(_from, _to=(row + dir, col - 1))
-
-        return [L, R]
-
-    @classmethod
-    def enpassant(cls, _from: Position, dir: int) -> list[Self]:
-        row, col = _from
-        L = cls(_from, _to=(row + dir, col + 1), _extra_capture=(row, col + 1))
-        R = cls(_from, _to=(row + dir, col - 1), _extra_capture=(row, col - 1))
+        L = cls(frm, to=(row + dir, col + 1))
+        R = cls(frm, to=(row + dir, col - 1))
 
         return [L, R]
 
     @classmethod
-    def front_short(cls, _from: Position, dir: int) -> list[Self]:
-        row, col = _from
+    def enpassant(cls, frm: Position, dir: int) -> list[Self]:
+        row, col = frm
+        L = cls(frm, to=(row + dir, col + 1), extra_capture=(row, col + 1))
+        R = cls(frm, to=(row + dir, col - 1), extra_capture=(row, col - 1))
 
-        return [cls(_from, _to=(row + dir, col))]
+        return [L, R]
 
     @classmethod
-    def front_long(cls, _from: Position, dir: int) -> list[Self]:
-        row, col = _from
+    def front_short(cls, frm: Position, dir: int) -> list[Self]:
+        row, col = frm
+
+        return [cls(frm, to=(row + dir, col))]
+
+    @classmethod
+    def front_long(cls, frm: Position, dir: int) -> list[Self]:
+        row, col = frm
 
         return [
             cls(
-                _from,
-                _to := (row + 2 * dir, col),
-                enpassant_target=_to,
+                frm,
+                to := (row + 2 * dir, col),
+                enpassant_trgt=to,
             )
         ]
 
@@ -219,13 +226,14 @@ def get_moves_pawn(board: Board, pos: Position) -> list[Move]:
     ]
     capture_moves = enpassant + pincer
     all_moves = enpassant + pincer + front_long + front_short
+    return all_moves
     return capture_moves if capture_moves else all_moves
 
 
 def get_moves_rook(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.perp(pos) if Checks.final(board, move)]
-    capture_moves = [move for move in valid_moves if board[move._to]]
+    capture_moves = [move for move in valid_moves if board[move.to]]
     return valid_moves
     return capture_moves if capture_moves else valid_moves
 
@@ -233,7 +241,7 @@ def get_moves_rook(board: Board, pos: Position) -> list[Move]:
 def get_moves_knight(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.lshapes(pos) if Checks.final(board, move)]
-    capture_moves = [move for move in valid_moves if board[move._to]]
+    capture_moves = [move for move in valid_moves if board[move.to]]
     return valid_moves
 
     return capture_moves if capture_moves else valid_moves
@@ -242,7 +250,7 @@ def get_moves_knight(board: Board, pos: Position) -> list[Move]:
 def get_moves_bishop(board: Board, pos: Position) -> list[Move]:
 
     valid_moves = [move for move in Move.diag(pos) if Checks.final(board, move)]
-    capture_moves = [move for move in valid_moves if board[move._to]]
+    capture_moves = [move for move in valid_moves if board[move.to]]
     return valid_moves
 
     return capture_moves if capture_moves else valid_moves
@@ -252,7 +260,7 @@ def get_moves_queen(board: Board, pos: Position) -> list[Move]:
 
     all_moves = Move.diag(pos) + Move.perp(pos)
     valid_moves = [move for move in all_moves if Checks.final(board, move)]
-    capture_moves = [move for move in valid_moves if board[move._to]]
+    capture_moves = [move for move in valid_moves if board[move.to]]
     return valid_moves
 
     return capture_moves if capture_moves else valid_moves
@@ -262,7 +270,7 @@ def get_moves_king(board: Board, pos: Position) -> list[Move]:
 
     all_moves = Move.diag(pos, 1) + Move.perp(pos, 1)
     valid_moves = [move for move in all_moves if Checks.final(board, move)]
-    capture_moves = [move for move in valid_moves if board[move._to]]
+    capture_moves = [move for move in valid_moves if board[move.to]]
     return valid_moves
     return capture_moves if capture_moves else valid_moves
 
@@ -283,51 +291,51 @@ MOVE_CALCULATORS: dict[PieceType, ValidMoveCalculator] = {
 class PawnCheck:
     @staticmethod
     def enpassant_valid(board: Board, move: Move) -> bool:
-        return board.enpassant_target == move._extra_capture
+        return board.enpassant_target == move.extra_capture
 
     @staticmethod
     def pincer_valid(board: Board, move: Move) -> bool:
-        if not board[move._to]:
+        if not board[move.to]:
             return False
-        if board[move._to].color != board[move._from].color:
+        if board[move.to].color != board[move.frm].color:
             return True
         return False
 
     @staticmethod
     def front_long_valid(board: Board, move: Move) -> bool:
 
-        starting_rank = move._from[0] == (
+        starting_rank = move.frm[0] == (
             6 if board.color_turn == PieceColor.WHITE else 1
         )
-        to_is_empty = not board[move._to]
+        to_is_empty = not board[move.to]
         return starting_rank and to_is_empty
 
     @staticmethod
     def front_short_valid(board: Board, move: Move) -> bool:
-        to_is_empty = not board[move._to]
+        to_is_empty = not board[move.to]
         return to_is_empty
 
 
 class Checks:
     @staticmethod
     def to_pos_in_grid(move: Move) -> bool:
-        return max(move._to) <= 7 and min(move._to) >= 0
+        return max(move.to) <= 7 and min(move.to) >= 0
 
     @staticmethod
     def is_color_turn(board: Board, move: Move) -> bool:
-        return board.color_turn == board[move._from].color
+        return board.color_turn == board[move.frm].color
 
     @staticmethod
     def to_empty_or_enemy(board: Board, move: Move) -> bool:
-        return board[move._to].color != board.color_turn
+        return board[move.to].color != board.color_turn
 
     @staticmethod
     def no_obstruction(board: Board, move: Move) -> bool:
-        x_from, y_from = move._from
-        x_to, y_to = move._to
+        xfrm, yfrm = move.frm
+        xto, yto = move.to
 
-        X = range(x_from, x_to, 1 if x_to > x_from else -1)
-        Y = range(y_from, y_to, 1 if y_to > y_from else -1)
+        X = range(xfrm, xto, 1 if xto > xfrm else -1)
+        Y = range(yfrm, yto, 1 if yto > yfrm else -1)
 
         # short moves and knights have no obstruction
         if min(len(X), len(Y)) == 1:
@@ -335,19 +343,15 @@ class Checks:
 
         # If both exist, diag move
         if X and Y:
-            obstructions = [1 for pos in zip(X, Y) if pos != move._from and board[pos]]
+            obstructions = [1 for pos in zip(X, Y) if pos != move.frm and board[pos]]
 
         # If x exists, perp col, same column
         elif X:
-            obstructions = [
-                1 for x in X if (x, y_from) != move._from and board[x, y_from]
-            ]
+            obstructions = [1 for x in X if (x, yfrm) != move.frm and board[x, yfrm]]
 
         # Else y exists, perp col, same row
         else:
-            obstructions = [
-                1 for y in Y if (x_from, y) != move._from and board[x_from, y]
-            ]
+            obstructions = [1 for y in Y if (xfrm, y) != move.frm and board[xfrm, y]]
 
         return not obstructions
 
@@ -358,18 +362,18 @@ class Checks:
 
         end_board = deepcopy(board)
 
-        end_board[move._to] = end_board[move._from]
-        del end_board[move._from]
+        end_board[move.to] = end_board[move.frm]
+        del end_board[move.frm]
 
-        if move._extra_capture:
-            del end_board[move._extra_capture]
+        if move.extra_capture:
+            del end_board[move.extra_capture]
 
         # check knights on L
         enemy_knight = [
             1
             for move in Move.lshapes(end_board.king_pos)
             if Checks.to_pos_in_grid(move)
-            and end_board[move._to] == Piece(enemy_color, PieceType.KNIGHT)
+            and end_board[move.to] == Piece(enemy_color, PieceType.KNIGHT)
         ]
 
         # check perpendiculars
@@ -377,7 +381,7 @@ class Checks:
             1
             for move in Move.perp(end_board.king_pos)
             if Checks.to_pos_in_grid(move)
-            and end_board[move._to]
+            and end_board[move.to]
             in (Piece(enemy_color, PieceType.ROOK), Piece(enemy_color, PieceType.QUEEN))
             and Checks.no_obstruction(end_board, move)
         ]
@@ -387,7 +391,7 @@ class Checks:
             1
             for move in Move.diag(end_board.king_pos)
             if Checks.to_pos_in_grid(move)
-            and end_board[move._to]
+            and end_board[move.to]
             in (
                 Piece(enemy_color, PieceType.BISHOP),
                 Piece(enemy_color, PieceType.QUEEN),
@@ -400,7 +404,7 @@ class Checks:
             1
             for move in Move.perp(end_board.king_pos, 1)
             + Move.diag(end_board.king_pos, 1)
-            if Checks.to_pos_in_grid(move) and move._to == end_board.other_king
+            if Checks.to_pos_in_grid(move) and move.to == end_board.other_king
         ]
 
         # check pincer for pawn
@@ -408,7 +412,7 @@ class Checks:
             1
             for move in Move.pincer(end_board.king_pos, board.dir)
             if Checks.to_pos_in_grid(move)
-            and end_board[move._to] == Piece(enemy_color, PieceType.PAWN)
+            and end_board[move.to] == Piece(enemy_color, PieceType.PAWN)
         ]
 
         all_enemies = (

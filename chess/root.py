@@ -146,25 +146,28 @@ class Root(Tk):
             # There was a selected move previously
             if self.candidates:
                 for move in self.candidates:
-                    self.reset_btn_bg(move._to)
-                    self.reset_btn_bg(move._from)
+                    to, frm = move.to, move.frm
+                    self.reset_btn_bg(to)
+                    self.reset_btn_bg(frm)
                 # Check all moves
                 for move in self.candidates:
-                    if pos == move._from:
+                    to, frm = move.to, move.frm
+                    extra_capture = move.extra_capture
+                    enpassant_trgt = move.enpassant_trgt
+                    
+                    if pos == frm:
                         self.candidates = []
                         return
                     # If clicked is same as move execute it and return
-                    if pos == move._to:
+                    if pos == to:
                         self.move_piece(
-                            move._from,
-                            move._to,
-                            move._extra_capture,
-                            move.enpassant_target,
+                            frm,
+                            to,
+                            extra_capture,
+                            enpassant_trgt,
                         )
                         self.candidates = []
                         return
-
-                # else erase previous hints, reset and try doing the proper way
 
             valid_moves = self.board.get_valid_moves(
                 pos
@@ -175,12 +178,12 @@ class Root(Tk):
                 return
             self.btn(pos)["bg"] = THEME.ACTIVE_BG
             for move in valid_moves:
-                if self[move._to]:
-                    self.btn(move._to)["bg"] = THEME.VALID_CAPTURE
+                if self[move.to]:
+                    self.btn(move.to)["bg"] = THEME.VALID_CAPTURE
                 else:
-                    self.btn(move._to)["bg"] = (
+                    self.btn(move.to)["bg"] = (
                         THEME.VALID_HIGHLIGHT_DARK
-                        if sum(move._to) % 2
+                        if sum(move.to) % 2
                         else THEME.VALID_HIGHLIGHT_LIGHT
                     )
             self.candidates = valid_moves
@@ -190,17 +193,18 @@ class Root(Tk):
                 return
             if self[pos].color != self.board.color_turn:
                 return
-            valid_moves = self.board.get_valid_moves(pos)
+
+            valid_to = [move.to for move in self.board.get_valid_moves(pos)]
             # if not valid_moves:
             #     self.btn(pos)["bg"] = THEME.INVALID_TILE
 
-            for move in valid_moves:
-                if self[move._to]:
-                    self.btn(move._to)["bg"] = THEME.VALID_CAPTURE
+            for to in valid_to:
+                if self[to]:
+                    self.btn(to)["bg"] = THEME.VALID_CAPTURE
                 else:
-                    self.btn(move._to)["bg"] = (
+                    self.btn(to)["bg"] = (
                         THEME.VALID_HIGHLIGHT_DARK
-                        if sum(move._to) % 2
+                        if sum(to) % 2
                         else THEME.VALID_HIGHLIGHT_LIGHT
                     )
 
@@ -216,6 +220,6 @@ class Root(Tk):
                 self.reset_btn_bg(pos)
 
             for move in valid_moves:
-                self.reset_btn_bg(move._to)
+                self.reset_btn_bg(move.to)
 
         return on_click, on_enter, on_exit
