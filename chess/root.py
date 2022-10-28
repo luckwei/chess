@@ -6,7 +6,9 @@ from typing import Callable
 
 from tksvg import SvgImage
 
-from .board import Board, Move
+from .board import Board, Flag, Move
+
+# TODO: try enum flags
 from .constants import SIZE, THEME
 from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
 from .types import Position
@@ -70,25 +72,23 @@ class Root(Tk):
 
             button.grid(row=pos[0], column=pos[1])
 
-    def move_piece(
-        self,
-        _from: Position,
-        _to: Position,
-        _extra_capture: Position | None = None,
-        enpassant_target: Position | None = None,
-    ) -> None:
+    def move_piece(self, frm: Position, to: Position, flag=Flag.NONE) -> None:
 
-        if self[_from].type == PieceType.PAWN or self[_to]:
+        match flag:
+            case Flag.CASTLING:
+                ...
+            case Flag.ENPASSANT:
+                del self[self.board.enpassant_target]
+
+        self.board.enpassant_target = to if flag == Flag.ENPASSANT_TRGT else None
+
+        if self[frm].type == PieceType.PAWN or self[to]:
             self.board.move_counter = 0
 
-        self[_to] = self[_from]
-        del self[_from]
+        self[to] = self[frm]
+        del self[frm]
 
-        if _extra_capture:
-            del self[_extra_capture]
-
-        self.board.enpassant_target = enpassant_target
-
+        # TODO: use flags
         self.board.move_counter += 1
         if self.board.move_counter >= 20:
             print("20 moves since last capture or pawn move!")
@@ -110,7 +110,9 @@ class Root(Tk):
         self.board[pos] = piece
         self.btn(pos)["image"] = self.__IMG_DICT[(piece.type, piece.color)]
 
-    def __delitem__(self, pos: Position) -> None:
+    def __delitem__(self, pos: Position | None) -> None:
+        if pos is None:
+            return
         del self.board[pos]
         self.btn(pos)["image"] = self.__IMG_DICT[PieceType.EMPTY, PieceColor.NONE]
 
@@ -151,21 +153,14 @@ class Root(Tk):
                     self.reset_btn_bg(frm)
                 # Check all moves
                 for move in self.candidates:
-                    to, frm = move.to, move.frm
-                    extra_capture = move.extra_capture
-                    enpassant_trgt = move.enpassant_trgt
-                    
+                    to, frm, flag = move.to, move.frm, move.flag
+
                     if pos == frm:
                         self.candidates = []
                         return
                     # If clicked is same as move execute it and return
                     if pos == to:
-                        self.move_piece(
-                            frm,
-                            to,
-                            extra_capture,
-                            enpassant_trgt,
-                        )
+                        self.move_piece(frm, to, flag)
                         self.candidates = []
                         return
 
