@@ -3,6 +3,19 @@ Building a not-so-normal Chess App with tkinter
 
 # UPDATE LOG
 
+## 29/10/22 CASTLIN!
+As the title says! Might take longer till the next update!
+
+### Game Logic
+1. Castling is now possible! Logic was a tough one to implement! Trust me, it had 3/4 additional rules :)
+
+### Future developments planned
+1. To wrap things up, the promotion! By default Queen for now
+2. Implement checkmate if possible moves of current color == 0
+3. Implement check UI! Maybe implement hover UI for castling
+4. DRAWS: implement stalemate if possible moves == 0 but king currently checked
+5. SOUND?
+
 ## 28/10/22 Almost there...
 Game logic has been reset to normal chess, where the player can select their pieces and their moves, except.. for castling. UI is also slightly richer.
 
