@@ -37,6 +37,7 @@ class Root(Tk):
         self.board = Board()
 
         self.select_mode = False
+        self.selected_pos = None
         self.candidates = []
         self.preview_candidates = []
 
@@ -73,7 +74,7 @@ class Root(Tk):
             button.grid(row=pos[0], column=pos[1])
 
     def move_piece(self, frm: Position, to: Position, flag=Flag.NONE) -> None:
-
+        print(frm, to)
         match flag:
             case Flag.CASTLING:
                 ...
@@ -84,7 +85,7 @@ class Root(Tk):
 
         if self[frm].type == PieceType.PAWN or self[to]:
             self.board.move_counter = 0
-
+        
         self[to] = self[frm]
         del self[frm]
 
@@ -108,7 +109,7 @@ class Root(Tk):
 
     def __setitem__(self, pos: Position, piece: Piece) -> None:
         self.board[pos] = piece
-        self.btn(pos)["image"] = self.__IMG_DICT[(piece.type, piece.color)]
+        self.btn(pos)["image"] = self.__IMG_DICT[piece.type, piece.color]
 
     def __delitem__(self, pos: Position | None) -> None:
         if pos is None:
@@ -117,7 +118,9 @@ class Root(Tk):
         self.btn(pos)["image"] = self.__IMG_DICT[PieceType.EMPTY, PieceColor.NONE]
 
     def bg(self, pos: Position) -> str:
-        return (THEME.LIGHT_TILES, THEME.DARK_TILES)[sum(pos) % 2]
+        return THEME.LIGHT_TILES if sum(pos) % 2 == 0 else THEME.DARK_TILES
+    
+    # TODO:Set states for background
 
     @property
     def board(self) -> Board:
@@ -146,22 +149,25 @@ class Root(Tk):
         def on_click(e: Event) -> None:
 
             # There was a selected move previously
-            if self.candidates:
+            if self.selected_pos:
+                self.reset_btn_bg(self.selected_pos)
                 for move in self.candidates:
-                    to, frm = move.to, move.frm
+                    to= move.to
                     self.reset_btn_bg(to)
-                    self.reset_btn_bg(frm)
                 # Check all moves
                 for move in self.candidates:
-                    to, frm, flag = move.to, move.frm, move.flag
+                    to, flag = move.to, move.flag
 
-                    if pos == frm:
+                    if pos == self.selected_pos:
                         self.candidates = []
+                        self.selected_pos = None
                         return
                     # If clicked is same as move execute it and return
                     if pos == to:
-                        self.move_piece(frm, to, flag)
+                        
+                        self.move_piece(self.selected_pos, to, flag)
                         self.candidates = []
+                        self.selected_pos = None
                         return
 
             valid_moves = self.board.get_valid_moves(
@@ -182,6 +188,7 @@ class Root(Tk):
                         else THEME.VALID_HIGHLIGHT_LIGHT
                     )
             self.candidates = valid_moves
+            self.selected_pos = pos
 
         def on_enter(e: Event) -> None:
             if self.candidates:
@@ -190,8 +197,6 @@ class Root(Tk):
                 return
 
             valid_to = [move.to for move in self.board.get_valid_moves(pos)]
-            # if not valid_moves:
-            #     self.btn(pos)["bg"] = THEME.INVALID_TILE
 
             for to in valid_to:
                 if self[to]:
