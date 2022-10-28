@@ -8,7 +8,6 @@ from tksvg import SvgImage
 
 from .board import Board, Flag, Move
 
-# TODO: try enum flags
 from .constants import SIZE, THEME
 from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
 from .types import Position

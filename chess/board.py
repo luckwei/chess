@@ -340,6 +340,7 @@ class KingCheck:
 
     # TODO GET ALL POSSIBLE MOVES AND CHECK IF 0, IF YES THEN CHECKMATE, black/grey background?
     # TODO KING IS RED IF CHECKED, OR! WHEN INVALID MOVE DUR TO CHECK
+    # TODO: IMPLEMENT DRAW FOR stALEMATE
     @staticmethod
     def castle_long_valid(board: Board) -> bool:
         row = 7 if board.color_turn == PieceColor.WHITE else 0
@@ -472,7 +473,7 @@ class Checks:
         end_board[to] = end_board[pos]
         del end_board[pos]
 
-        if flag == Flag.ENPASSANT:  # TODO be refactored
+        if flag == Flag.ENPASSANT:
             del end_board[end_board.enpassant_target]
 
         return KingCheck.safe(end_board, end_board.king_pos, board.color_turn)
