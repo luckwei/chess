@@ -74,10 +74,30 @@ class Root(Tk):
             button.grid(row=pos[0], column=pos[1])
 
     def move_piece(self, frm: Position, to: Position, flag=Flag.NONE) -> None:
-        print(frm, to)
+        #define inner function
         match flag:
-            case Flag.CASTLING:
-                ...
+            case Flag.CASTLE_LONG:
+                row = 7 if self.board.color_turn == PieceColor.WHITE else 0
+                self[(row, 3)] = self[(row, 0)]
+                del self[(row, 0)]
+                self.board.castling_flags[self.board.color_turn] = [False, False]
+                
+                
+            case Flag.CASTLE_SHORT:
+                row = 7 if self.board.color_turn == PieceColor.WHITE else 0
+                self[(row, 5)] = self[(row, 7)]
+                del self[(row, 7)]
+                self.board.castling_flags[self.board.color_turn] = [False, False]
+                
+            case Flag.LOSE_KING_PRIV:
+                self.board.castling_flags[self.board.color_turn] = [False, False]
+            case Flag.LOSE_ROOK_PRIV:
+                row = 7 if self.board.color_turn == PieceColor.WHITE else 0
+                if frm == (row, 0):
+                    self.board.castling_flags[self.board.color_turn][0] = False
+                if frm == (row, 7):
+                    self.board.castling_flags[self.board.color_turn][1] = False
+                    
             case Flag.ENPASSANT:
                 del self[self.board.enpassant_target]
 
@@ -85,7 +105,7 @@ class Root(Tk):
 
         if self[frm].type == PieceType.PAWN or self[to]:
             self.board.move_counter = 0
-        
+
         self[to] = self[frm]
         del self[frm]
 
@@ -119,7 +139,7 @@ class Root(Tk):
 
     def bg(self, pos: Position) -> str:
         return THEME.LIGHT_TILES if sum(pos) % 2 == 0 else THEME.DARK_TILES
-    
+
     # TODO:Set states for background
 
     @property
@@ -152,7 +172,7 @@ class Root(Tk):
             if self.selected_pos:
                 self.reset_btn_bg(self.selected_pos)
                 for move in self.candidates:
-                    to= move.to
+                    to = move.to
                     self.reset_btn_bg(to)
                 # Check all moves
                 for move in self.candidates:
@@ -164,7 +184,7 @@ class Root(Tk):
                         return
                     # If clicked is same as move execute it and return
                     if pos == to:
-                        
+
                         self.move_piece(self.selected_pos, to, flag)
                         self.candidates = []
                         self.selected_pos = None
