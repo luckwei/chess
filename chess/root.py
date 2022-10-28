@@ -73,22 +73,24 @@ class Root(Tk):
 
             button.grid(row=pos[0], column=pos[1])
 
+
     def move_piece(self, frm: Position, to: Position, flag=Flag.NONE) -> None:
-        #define inner function
+        # define inner function
+        def single_move(frm: Position, to: Position) -> None:
+            self[to] = self[frm]
+            del self[frm]
+            
         match flag:
             case Flag.CASTLE_LONG:
                 row = 7 if self.board.color_turn == PieceColor.WHITE else 0
-                self[(row, 3)] = self[(row, 0)]
-                del self[(row, 0)]
+                single_move((row, 0), (row, 3))
                 self.board.castling_flags[self.board.color_turn] = [False, False]
-                
-                
+
             case Flag.CASTLE_SHORT:
                 row = 7 if self.board.color_turn == PieceColor.WHITE else 0
-                self[(row, 5)] = self[(row, 7)]
-                del self[(row, 7)]
+                single_move((row,7), (row,5))
                 self.board.castling_flags[self.board.color_turn] = [False, False]
-                
+
             case Flag.LOSE_KING_PRIV:
                 self.board.castling_flags[self.board.color_turn] = [False, False]
             case Flag.LOSE_ROOK_PRIV:
@@ -97,7 +99,7 @@ class Root(Tk):
                     self.board.castling_flags[self.board.color_turn][0] = False
                 if frm == (row, 7):
                     self.board.castling_flags[self.board.color_turn][1] = False
-                    
+
             case Flag.ENPASSANT:
                 del self[self.board.enpassant_target]
 
@@ -106,14 +108,14 @@ class Root(Tk):
         if self[frm].type == PieceType.PAWN or self[to]:
             self.board.move_counter = 0
 
-        self[to] = self[frm]
-        del self[frm]
+        single_move(frm, to)
 
-        # TODO: use flags
+
         self.board.move_counter += 1
         if self.board.move_counter >= 20:
             print("20 moves since last capture or pawn move!")
             ...  # TODO:draw! Ending game, check or checkmate
+        #TODO: PROMOTION LOGIC
         # TODO: GAME WIN/GAME LOSS/GAME DRAW!
         # TODO:UNDO MOVE
 
