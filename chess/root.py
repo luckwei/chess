@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import Enum, auto
 from itertools import product
 from tkinter import GROOVE, Button, Event, Tk, Widget
 from typing import Callable
@@ -12,6 +12,12 @@ from .constants import SIZE, THEME
 from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
 from .types import Position
 
+
+class State(Enum):
+    DEFAULT = auto()
+    CAPTURABLE = auto()
+    MOVABLE = auto()
+    SELECTED = auto()
 
 class Root(Tk):
     def __init__(self) -> None:
@@ -35,7 +41,6 @@ class Root(Tk):
         self.setup_buttons()
         self.board = Board()
 
-        self.select_mode = False
         self.selected_pos = None
         self.candidates = []
         self.preview_candidates = []
@@ -47,21 +52,20 @@ class Root(Tk):
     @candidates.setter
     def candidates(self, moves) -> None:
         self._candidates = moves
-        # self.select_mode = bool(moves)
 
     @candidates.deleter
     def candidates(self) -> None:
         self.candidates = []
+        self.selected_pos = None
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
             button = Button(
                 self,
-                bg=self.bg(pos),
                 activebackground=THEME.ACTIVE_BG,
                 bd=0,
-                relief=GROOVE,
-                overrelief=GROOVE,
+                # relief=GROOVE,
+                # overrelief=GROOVE,
                 height=SIZE.TILE,
                 width=SIZE.TILE,
             )
@@ -71,6 +75,7 @@ class Root(Tk):
             button.bind("<Leave>", on_exit)
 
             button.grid(row=pos[0], column=pos[1])
+            self.reset_bg(pos)
 
 
     def move_piece(self, frm: Position, to: Position, flag=Flag.NONE) -> None:
@@ -138,10 +143,20 @@ class Root(Tk):
         del self.board[pos]
         self.btn(pos)["image"] = self.__IMG_DICT[PieceType.EMPTY, PieceColor.NONE]
 
-    def bg(self, pos: Position) -> str:
-        return THEME.LIGHT_TILES if sum(pos) % 2 == 0 else THEME.DARK_TILES
+    def reset_bg(self, pos: Position, state: State = State.DEFAULT) -> None:
+        match state:
+            case State.CAPTURABLE:
+                bg = THEME.VALID_CAPTURE
+            case State.MOVABLE:
+                bg = THEME.VALID_HIGHLIGHT_DARK                         if sum(pos) % 2                        else THEME.VALID_HIGHLIGHT_LIGHT
+            case State.SELECTED:
+                bg = THEME.ACTIVE_BG
+            case _:
+                bg = THEME.LIGHT_TILES if sum(pos) % 2 == 0 else THEME.DARK_TILES
+        self.btn(pos)["bg"] = bg
+    
 
-    # TODO:Set states for background
+
 
     @property
     def board(self) -> Board:
@@ -159,8 +174,7 @@ class Root(Tk):
     def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
 
-    def reset_btn_bg(self, pos: Position) -> None:
-        self.btn(pos)["bg"] = self.bg(pos)
+
 
     def __bind_factory(
         self, pos: Position
@@ -171,76 +185,76 @@ class Root(Tk):
 
             # There was a selected move previously
             if self.selected_pos:
-                self.reset_btn_bg(self.selected_pos)
+                self.reset_bg(self.selected_pos)
                 for move in self.candidates:
                     to = move.to
-                    self.reset_btn_bg(to)
+                    self.reset_bg(to)
                 # Check all moves
                 for move in self.candidates:
                     to, flag = move.to, move.flag
 
                     if pos == self.selected_pos:
                         del self.candidates
-                        self.selected_pos = None
                         return
                     # If clicked is same as move execute it and return
                     if pos == to:
 
                         self.move_piece(self.selected_pos, to, flag)
                         del self.candidates
-                        self.selected_pos = None
                         return
 
             valid_moves = self.board.get_valid_moves(
                 pos
             )  # might refactor to be outside of board
             if not valid_moves:
-                self.candidates = []
-                self.select_mode = False
+                del self.candidates
                 return
             self.btn(pos)["bg"] = THEME.ACTIVE_BG
             for move in valid_moves:
                 if self[move.to]:
-                    self.btn(move.to)["bg"] = THEME.VALID_CAPTURE
+                    self.reset_bg(move.to, State.CAPTURABLE)
+
                 else:
-                    self.btn(move.to)["bg"] = (
-                        THEME.VALID_HIGHLIGHT_DARK
-                        if sum(move.to) % 2
-                        else THEME.VALID_HIGHLIGHT_LIGHT
-                    )
+                    self.reset_bg(move.to, State.MOVABLE)
+
             self.candidates = valid_moves
             self.selected_pos = pos
 
         def on_enter(e: Event) -> None:
-            if self.candidates:
+            if self.selected_pos:
                 return
+            
             if self[pos].color != self.board.color_turn:
                 return
 
-            valid_to = [move.to for move in self.board.get_valid_moves(pos)]
-
-            for to in valid_to:
-                if self[to]:
-                    self.btn(to)["bg"] = THEME.VALID_CAPTURE
-                else:
-                    self.btn(to)["bg"] = (
-                        THEME.VALID_HIGHLIGHT_DARK
-                        if sum(to) % 2
-                        else THEME.VALID_HIGHLIGHT_LIGHT
-                    )
-
-                    # self.btn(move._to)["image"] = self.pointer_image
-
-        def on_exit(e: Event) -> None:
-            if self.candidates:
-                return
-            if not self[pos]:
-                return
-            valid_moves = self.board.get_valid_moves(pos)
-            if not valid_moves:
-                self.reset_btn_bg(pos)
+            valid_moves = [move for move in self.board.get_valid_moves(pos)]
 
             for move in valid_moves:
-                self.reset_btn_bg(move.to)
+                if self[move.to]:
+                    self.reset_bg(move.to, State.CAPTURABLE)
+                    
+                    # self.btn(move.to)["bg"] = THEME.VALID_CAPTURE
+                else:
+                    self.reset_bg(move.to, State.MOVABLE)
+                    
+                    # self.btn(move.to)["bg"] = (
+                    #     THEME.VALID_HIGHLIGHT_DARK
+                    #     if sum(move.to) % 2
+                    #     else THEME.VALID_HIGHLIGHT_LIGHT
+                    # )
+
+
+        def on_exit(e: Event) -> None:
+            if self.selected_pos:
+                return
+            if self[pos].color != self.board.color_turn:
+                return
+            
+            valid_moves = self.board.get_valid_moves(pos)
+
+            self.reset_bg(pos)
+
+            for move in valid_moves:
+                self.reset_bg(move.to)
 
         return on_click, on_enter, on_exit
