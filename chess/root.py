@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 from itertools import product
 from tkinter import GROOVE, Button, Event, Tk, Widget
 from typing import Callable
@@ -7,7 +8,6 @@ from typing import Callable
 from tksvg import SvgImage
 
 from .board import Board, Flag, Move
-
 from .constants import SIZE, THEME
 from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
 from .types import Position
@@ -17,7 +17,7 @@ class Root(Tk):
     def __init__(self) -> None:
         super().__init__()
 
-        self.pointer_image = SvgImage(file="res/circle.svg", scaletowidth=20)
+        # self.pointer_image = SvgImage(file="res/circle.svg", scaletowidth=20)
 
         self.__IMG_DICT = {
             (type, color): SvgImage(
@@ -120,7 +120,7 @@ class Root(Tk):
 
         # TODO: force kill, find ALL moves, from own color, highlight available pieces
 
-        # TODO: CHECKS WILL alert the user, refactor into check if board is checked , maybe with a color, so it can also be used for the check if king checked after position used for king checks currently
+        # TODO: CHECKS WILL alert the user
         self.board.toggle_color_turn()
 
     # WINNING LOGIC TODO
@@ -180,14 +180,14 @@ class Root(Tk):
                     to, flag = move.to, move.flag
 
                     if pos == self.selected_pos:
-                        self.candidates = []
+                        del self.candidates
                         self.selected_pos = None
                         return
                     # If clicked is same as move execute it and return
                     if pos == to:
 
                         self.move_piece(self.selected_pos, to, flag)
-                        self.candidates = []
+                        del self.candidates
                         self.selected_pos = None
                         return
 

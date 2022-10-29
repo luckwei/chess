@@ -467,7 +467,6 @@ class Checks:
     @staticmethod
     def king_safe_at_end(board: Board, pos: Position, move: Move) -> bool:
         to, flag = move.to, move.flag
-        enemy_color = board.enemy_color
 
         end_board = deepcopy(board)
         end_board[to] = end_board[pos]
