@@ -129,6 +129,17 @@ class Root(Tk):
         # TODO: CHECKS WILL alert the user
         self.board.toggle_color_turn()
         self.all_possible_moves = self.board.get_all_possible_moves()
+        
+        #TODO: ADD SOUNDS!
+        if self.board.checked:
+            print("CHECKED!")
+            
+        if self.board.checkmated:
+            print("CHECKMATE!")
+            
+        if self.board.stalemated:
+            print("STALEMATE!")
+        
 
     # WINNING LOGIC TODO
     # winning logic: if list of get all moves where getall moves = find all pieces of our color and combine their valid moves is False -> color_turn loses / other_color wins -> need a pop up with label text, maybe button to reset board, closes the popup too and invokes the reset board

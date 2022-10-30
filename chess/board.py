@@ -49,30 +49,33 @@ class Board:
         for i, p in enumerate(config):
             if p != " ":
                 self[divmod(i, 8)] = Piece(*FEN_MAP[p])
-                
-    #TODO: ADD CHECKMATED PROPERTY
-    #TODO: ADD CHECKED PROPERTY
-    #TODO: ADD STALEMATE PROPERTY
+
+    # TODO: ADD CHECKMATED PROPERTY
+    # TODO: ADD CHECKED PROPERTY
+    # TODO: ADD STALEMATE PROPERTY
     ##FIXME: CHECK
     @property
     def checked(self) -> bool:
         return not KingCheck.safe(self, self.king_pos, self.color_turn)
-    
+
     @property
     def checkmated(self) -> bool:
-        return self.get_all_possible_moves() is False and not KingCheck.safe(self, self.king_pos, self.color_turn)
-    
+        return not self.get_all_possible_moves() and self.checked
+
     @property
     def stalemated(self) -> bool:
-        return self.get_all_possible_moves() is False and KingCheck.safe(self, self.king_pos, self.color_turn)
-    
+        return not self.get_all_possible_moves() and not self.checked
+
     ##END OF FIXME CHECK
-    
+
     def __iter__(self):
         return iter(self.pieces.items())
-    
+
     def get_all_possible_moves(self) -> dict[Position, list[Move]]:
-        all_moves = {pos: MOVE_CALCULATORS[self[pos].type](self, pos) for pos in self.pieces.keys()}
+        all_moves = {
+            pos: MOVE_CALCULATORS[self[pos].type](self, pos)
+            for pos in self.pieces.keys()
+        }
         return {pos: move for pos, move in all_moves.items() if move}
 
     @property
@@ -109,7 +112,6 @@ class Board:
                 if piece == Piece(self.enemy_color, PieceType.KING)
             )
         )
-
 
     def __str__(self) -> str:
         pieces_str = [str(piece) for piece in self.pieces.values()]
