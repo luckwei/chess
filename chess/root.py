@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import Enum, auto
 from itertools import product
 from tkinter import GROOVE, Button, Event, Tk, Widget
+from tkinter.messagebox import showinfo
 from typing import Callable
 
 from tksvg import SvgImage
@@ -24,8 +25,6 @@ class Root(Tk):
     def __init__(self) -> None:
         super().__init__()
 
-        # self.pointer_image = SvgImage(file="res/circle.svg", scaletowidth=20)
-
         self.__IMG_DICT = {
             (type, color): SvgImage(
                 file=f"res/{type}_{color}.svg", scaletowidth=SIZE.PIECE
@@ -42,11 +41,8 @@ class Root(Tk):
         self.setup_buttons()
         self.board = Board()
 
-        self.all_possible_moves = self.board.get_all_possible_moves()
-
         self.selected_pos = None
-        self.candidates = []
-        self.preview_candidates = []
+
 
     @property
     def candidates(self) -> list[Move]:
@@ -128,21 +124,23 @@ class Root(Tk):
 
         # TODO: CHECKS WILL alert the user
         self.board.toggle_color_turn()
-        self.all_possible_moves = self.board.get_all_possible_moves()
-        
-        #TODO: ADD SOUNDS!
+        self.all_moves = self.board.all_moves
+
+        # TODO: ADD SOUNDS!
         if self.board.checked:
             print("CHECKED!")
-            
+
         if self.board.checkmated:
             print("CHECKMATE!")
-            
+            showinfo(
+                "Game ended!",
+                f"{self.board.enemy_color} WINS by CHECKMATE!\nPress q to start new game..",
+            )
+
         if self.board.stalemated:
             print("STALEMATE!")
-        
+            showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
 
-    # WINNING LOGIC TODO
-    # winning logic: if list of get all moves where getall moves = find all pieces of our color and combine their valid moves is False -> color_turn loses / other_color wins -> need a pop up with label text, maybe button to reset board, closes the popup too and invokes the reset board
     def __getitem__(self, pos: Position) -> Piece:
         return self.board[pos]
 
@@ -185,9 +183,11 @@ class Root(Tk):
         self._board = board
         for pos, piece in self.board.pieces.items():
             self.btn(pos)["image"] = self.__IMG_DICT[piece.type, piece.color]
+        self.all_moves = self.board.all_moves
 
     def reset(self) -> None:
         self.board = Board()
+        self.selected_pos = None
 
     def btn(self, pos: Position) -> Widget:
         return self.grid_slaves(*pos)[0]
@@ -203,11 +203,11 @@ class Root(Tk):
             if self.selected_pos:
                 self.reset_bg(self.selected_pos)
 
-                for move in self.all_possible_moves[self.selected_pos]:
+                for move in self.all_moves[self.selected_pos]:
                     to = move.to
                     self.reset_bg(to)
                 # Check all moves
-                for move in self.all_possible_moves[self.selected_pos]:
+                for move in self.all_moves[self.selected_pos]:
                     to, flag = move.to, move.flag
 
                     if pos == self.selected_pos:
@@ -222,11 +222,11 @@ class Root(Tk):
                         self.selected_pos = None
                         return
 
-            if pos not in self.all_possible_moves:
+            if pos not in self.all_moves:
                 return
 
             self.reset_bg(pos, State.SELECTED)
-            for move in self.all_possible_moves[pos]:
+            for move in self.all_moves[pos]:
                 if self[move.to]:
                     self.reset_bg(move.to, State.CAPTURABLE)
                 else:
@@ -238,10 +238,10 @@ class Root(Tk):
             if self.selected_pos:
                 return
 
-            if pos not in self.all_possible_moves:
+            if pos not in self.all_moves:
                 return
 
-            for move in self.all_possible_moves[pos]:
+            for move in self.all_moves[pos]:
                 self.reset_bg(
                     move.to, State.CAPTURABLE if self[move.to] else State.MOVABLE
                 )
@@ -250,12 +250,12 @@ class Root(Tk):
             if self.selected_pos:
                 return
 
-            if pos not in self.all_possible_moves:
+            if pos not in self.all_moves:
                 return
 
             self.reset_bg(pos)
 
-            for move in self.all_possible_moves[pos]:
+            for move in self.all_moves[pos]:
                 self.reset_bg(move.to)
 
         return on_click, on_enter, on_exit

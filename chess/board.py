@@ -50,28 +50,26 @@ class Board:
             if p != " ":
                 self[divmod(i, 8)] = Piece(*FEN_MAP[p])
 
-    # TODO: ADD CHECKMATED PROPERTY
-    # TODO: ADD CHECKED PROPERTY
-    # TODO: ADD STALEMATE PROPERTY
-    ##FIXME: CHECK
+        
     @property
     def checked(self) -> bool:
         return not KingCheck.safe(self, self.king_pos, self.color_turn)
 
     @property
     def checkmated(self) -> bool:
-        return not self.get_all_possible_moves() and self.checked
+        return not self.all_moves and self.checked
 
     @property
     def stalemated(self) -> bool:
-        return not self.get_all_possible_moves() and not self.checked
+        return not self.all_moves and not self.checked
 
     ##END OF FIXME CHECK
 
     def __iter__(self):
         return iter(self.pieces.items())
 
-    def get_all_possible_moves(self) -> dict[Position, list[Move]]:
+    @property
+    def all_moves(self) -> dict[Position, list[Move]]:
         all_moves = {
             pos: MOVE_CALCULATORS[self[pos].type](self, pos)
             for pos in self.pieces.keys()
@@ -485,7 +483,6 @@ class Checks:
 
         return not obstructions
 
-    # TODO: decoupling
     @staticmethod
     def king_safe_at_end(board: Board, pos: Position, move: Move) -> bool:
         to, flag = move.to, move.flag
