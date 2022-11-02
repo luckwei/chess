@@ -6,6 +6,8 @@ from tkinter import GROOVE, Button, Event, Tk, Widget
 from tkinter.messagebox import showinfo
 from typing import Callable
 
+# from playsound import playsound
+
 from tksvg import SvgImage
 
 from .board import Board, Flag, Move
@@ -77,7 +79,6 @@ class Root(Tk):
             self.reset_bg(pos)
 
     def move_piece(self, frm: Position, to: Position, flag=Flag.NONE) -> None:
-        # define inner function
         def single_move(frm: Position, to: Position) -> None:
             self[to] = self[frm]
             del self[frm]
@@ -113,14 +114,11 @@ class Root(Tk):
         single_move(frm, to)
 
         self.board.move_counter += 1
-        if self.board.move_counter >= 20:
-            print("20 moves since last capture or pawn move!")
-            ...  # TODO:draw! Ending game, check or checkmate
+        if self.board.move_counter >= (n_moves:= 20):
+            print(f"{n_moves} moves since last capture or pawn move!")
+            showinfo("DRAW!", f"{n_moves} move rule!")
         # TODO: PROMOTION LOGIC
-        # TODO: GAME WIN/GAME LOSS/GAME DRAW!
         # TODO:UNDO MOVE
-
-        # TODO: force kill, find ALL moves, from own color, highlight available pieces
 
         # TODO: CHECKS WILL alert the user
         self.board.toggle_color_turn()
@@ -140,6 +138,7 @@ class Root(Tk):
         if self.board.stalemated:
             print("STALEMATE!")
             showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
+            
 
     def __getitem__(self, pos: Position) -> Piece:
         return self.board[pos]
@@ -216,6 +215,7 @@ class Root(Tk):
                         return
                     # If clicked is same as move execute it and return
                     if pos == to:
+                        # playsound("res/sound/s1.wav", False)
 
                         self.move_piece(self.selected_pos, to, flag)
 
@@ -227,10 +227,9 @@ class Root(Tk):
 
             self.reset_bg(pos, State.SELECTED)
             for move in self.all_moves[pos]:
-                if self[move.to]:
-                    self.reset_bg(move.to, State.CAPTURABLE)
-                else:
-                    self.reset_bg(move.to, State.MOVABLE)
+                self.reset_bg(
+                    move.to, State.CAPTURABLE if self[move.to] else State.MOVABLE
+                )
 
             self.selected_pos = pos
 
