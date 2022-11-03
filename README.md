@@ -1,6 +1,7 @@
 # CHESS
 
-Building a Chess App with tkinter in Python
+_Building a Chess App with tkinter in Python_
+![Gameplay preview](pictures/gameplay.gif)
 
 ## About this project
 
@@ -19,9 +20,18 @@ This is all done as part of a humble learning journey!
 [ArjanCodes' chess refactoring code](https://github.com/ArjanCodes/2022-chessroast)
 
 ## DEVELOPMENT LOG
-
-> **29/10/22 CASTLING**
 >
+> **03/11/22 BEGIN PORTING TO WEBSITE**
+> Now that the game is done (aside from promotional logic), would like to learn to bring it to the web using Python's Flask!
+>> **Game Logic**
+>>
+>> - Checkmate and Stalemate implemented
+>>
+>> **UI?UX**
+>>
+>> - Highlights distinguish captures and movements
+>>
+> **29/10/22 CASTLING**
 >As the title says! Might take longer till the next update!
 >
 >>**Game Logic**
@@ -37,7 +47,6 @@ This is all done as part of a humble learning journey!
 >> - SOUND?
 >
 > **28/10/22 Almost there**
->
 > Game logic has been reset to normal chess, where the player can select their pieces and their moves, except.. for castling. UI is also slightly richer.
 >
 >>**Game Logic**
@@ -71,7 +80,6 @@ This is all done as part of a humble learning journey!
 >> - Serial-Killer-Chess: Logic could be changed to 'must kill if any piece can' instead of each piece
 >>
 > **25/10/22 Update! Revamp**
->
 >Refactored code based on inspiration for Uncle Arjan and developed till almost similar functionalities as the previous pitstop. I am actually learning so much about OOP, decoupling etc, this is good!
 >
 >> **Current functionalities**
