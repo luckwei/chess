@@ -182,6 +182,7 @@ class Root(Tk):
         self._board = board
         for pos, piece in self.board.pieces.items():
             self.btn(pos)["image"] = self.__IMG_DICT[piece.type, piece.color]
+            self.reset_bg(pos)
         self.all_moves = self.board.all_moves
 
     def reset(self) -> None:
