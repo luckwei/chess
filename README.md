@@ -1,6 +1,7 @@
 # CHESS
 
 _Building a Chess App with tkinter in Python_
+
 ![Gameplay preview](pictures/gameplay.gif)
 
 ## About this project
