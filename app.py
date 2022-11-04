@@ -43,6 +43,10 @@ def db_init():
 db_init()
 
 @app.route("/", methods=["GET", "POST"])
+def chess():
+    return render_template("chess.html")
+
+# @app.route("/", methods=["GET", "POST"])
 def index():
     todo_form = TodoForm()
     if todo_form.validate_on_submit():
