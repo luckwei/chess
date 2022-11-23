@@ -2,17 +2,228 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import InitVar, dataclass, field
-from enum import Enum, IntEnum, auto
 from itertools import product
 from math import dist
 from os import stat
-from typing import Callable, Self
+from typing import Callable
 
-import numpy as np
-
+from .move import (
+    Flag,
+    Move,
+    castle_long_m,
+    castle_short_m,
+    diag_m,
+    enpassant_m,
+    front_long_m,
+    front_short_m,
+    lshapes_m,
+    perp_m,
+    pincer_m,
+)
 from .piece import FEN_MAP, Piece, PieceColor, PieceType
 from .setup import Setup
 from .types import Position
+
+
+def kingcheck_safe(board: Board, pos: Position, color: PieceColor) -> bool:
+    enemy_color = PieceColor.WHITE if color == PieceColor.BLACK else PieceColor.BLACK
+
+    dir = -1 if color == PieceColor.WHITE else 1
+
+    enemy_knight = [
+        1
+        for move in lshapes_m(pos)
+        if to_pos_in_grid(move)
+        and board[move.to] == Piece(enemy_color, PieceType.KNIGHT)
+    ]
+
+    # check perpendiculars
+    enemy_rook_queen = [
+        1
+        for move in perp_m(pos)
+        if to_pos_in_grid(move)
+        and board[move.to]
+        in (Piece(enemy_color, PieceType.ROOK), Piece(enemy_color, PieceType.QUEEN))
+        and no_obstruction(board, pos, move)
+    ]
+
+    # check diagonals
+    enemy_bishop_queen = [
+        1
+        for move in diag_m(pos)
+        if to_pos_in_grid(move)
+        and board[move.to]
+        in (
+            Piece(enemy_color, PieceType.BISHOP),
+            Piece(enemy_color, PieceType.QUEEN),
+        )
+        and no_obstruction(board, pos, move)
+    ]
+
+    # check adjacent for king
+    enemy_king = [
+        1
+        for move in perp_m(pos, 1) + diag_m(pos, 1)
+        if to_pos_in_grid(move) and board[move.to] == Piece(enemy_color, PieceType.KING)
+    ]
+
+    # check pincer for pawn
+    enemy_pawn = [
+        1
+        for move in pincer_m(pos, dir)
+        if to_pos_in_grid(move) and board[move.to] == Piece(enemy_color, PieceType.PAWN)
+    ]
+
+    all_enemies = (
+        enemy_knight + enemy_rook_queen + enemy_bishop_queen + enemy_king + enemy_pawn
+    )
+
+    return not all_enemies
+
+
+# TODO GET ALL POSSIBLE MOVES AND CHECK IF 0, IF YES THEN CHECKMATE, black/grey background?
+# TODO KING IS RED IF CHECKED, OR! WHEN INVALID MOVE DUR TO CHECK
+# TODO: IMPLEMENT DRAW FOR stALEMATE
+def castle_long_valid(board: Board) -> bool:
+    row = 7 if board.color_turn == PieceColor.WHITE else 0
+
+    pos_pass_long = kingcheck_safe(board, (row, 3), board.color_turn)
+    clear_lane = not [
+        1
+        for btwn_pos in [
+            (row, 1),
+            (row, 2),
+            (row, 3),
+        ]
+        if board[btwn_pos]
+    ]
+
+    king_not_checked = kingcheck_safe(board, (row, 4), board.color_turn)
+
+    priviledge = board.castling_flags[board.color_turn][0]
+    return pos_pass_long and clear_lane and king_not_checked and priviledge
+
+
+def castle_short_valid(board: Board) -> bool:
+    row = 7 if board.color_turn == PieceColor.WHITE else 0
+
+    pos_pass_short = kingcheck_safe(board, (row, 5), board.color_turn)
+    clear_lane = not [
+        1
+        for btwn_pos in [
+            (row, 5),
+            (row, 6),
+        ]
+        if board[btwn_pos]
+    ]
+
+    king_not_checked = kingcheck_safe(board, (row, 4), board.color_turn)
+
+    priviledge = board.castling_flags[board.color_turn][1]
+    return pos_pass_short and clear_lane and king_not_checked and priviledge
+
+
+def enpassant_valid(board: Board, pos: Position, move: Move) -> bool:
+    to = move.to
+    enemy_pawn = (pos[0], to[1])
+    return board.enpassant_target == enemy_pawn
+
+
+def pincer_valid(board: Board, pos: Position, move: Move) -> bool:
+    to = move.to
+    if not board[to]:
+        return False
+    if board[move.to].color != board[pos].color:
+        return True
+    return False
+
+
+def front_long_valid(board: Board, pos: Position, move: Move) -> bool:
+    to = move.to
+    color_turn = board.color_turn
+
+    starting_rank = pos[0] == (6 if color_turn == PieceColor.WHITE else 1)
+    to_is_empty = not board[to]
+    return starting_rank and to_is_empty
+
+
+def front_short_valid(board: Board, pos: Position, move: Move) -> bool:
+    to = move.to
+    to_piece = board[to]
+
+    return to_piece.type == PieceType.EMPTY
+
+
+def to_pos_in_grid(move: Move) -> bool:
+    to = move.to
+
+    return max(to) <= 7 and min(to) >= 0
+
+
+def is_color_turn(board: Board, pos: Position) -> bool:
+    color_turn = board.color_turn
+    piece = board[pos]
+
+    return color_turn == piece.color
+
+
+def to_empty_or_enemy(board: Board, pos: Position, move: Move) -> bool:
+    to = move.to
+    color_turn = board.color_turn
+    to_piece = board[to]
+
+    return to_piece.color != color_turn or to_piece.color == PieceColor.NONE
+
+
+def no_obstruction(board: Board, pos: Position, move: Move) -> bool:
+    to = move.to
+    pos_x, pos_y = pos
+    to_x, to_y = to
+
+    X = range(pos_x, to_x, 1 if to_x > pos_x else -1)
+    Y = range(pos_y, to_y, 1 if to_y > pos_y else -1)
+
+    # short moves and knights have no obstruction
+    if min(len(X), len(Y)) == 1:
+        return True
+
+    # If both exist, diag move
+    if X and Y:
+        obstructions = [1 for xy in zip(X, Y) if xy != pos and board[xy]]
+
+    # If x exists, perp col, same column
+    elif X:
+        obstructions = [1 for x in X if (x, pos_y) != pos and board[x, pos_y]]
+
+    # Else y exists, perp col, same row
+    else:
+        obstructions = [1 for y in Y if (pos_x, y) != pos and board[pos_x, y]]
+
+    return not obstructions
+
+
+def king_safe_at_end(board: Board, pos: Position, move: Move) -> bool:
+    to, flag = move.to, move.flag
+
+    end_board = deepcopy(board)
+    end_board[to] = end_board[pos]
+    del end_board[pos]
+
+    if flag == Flag.ENPASSANT:
+        del end_board[end_board.enpassant_target]
+
+    return kingcheck_safe(end_board, end_board.king_pos, board.color_turn)
+
+
+def final_checks(board: Board, pos: Position, move: Move) -> bool:
+    return (
+        to_pos_in_grid(move)
+        and is_color_turn(board, pos)
+        and to_empty_or_enemy(board, pos, move)
+        and no_obstruction(board, pos, move)
+        and king_safe_at_end(board, pos, move)
+    )
+
 
 _Grid = dict[Position, Piece]
 _Flags = dict[PieceColor, list[bool]]
@@ -50,10 +261,9 @@ class Board:
             if p != " ":
                 self[divmod(i, 8)] = Piece(*FEN_MAP[p])
 
-        
     @property
     def checked(self) -> bool:
-        return not KingCheck.safe(self, self.king_pos, self.color_turn)
+        return not kingcheck_safe(self, self.king_pos, self.color_turn)
 
     @property
     def checkmated(self) -> bool:
@@ -70,9 +280,9 @@ class Board:
 
     @property
     def all_moves(self) -> dict[Position, list[Move]]:
+
         all_moves = {
-            pos: MOVE_CALCULATORS[self[pos].type](self, pos)
-            for pos in self.pieces.keys()
+            pos: MOVE_CALCULATORS[self[pos].type](self, pos) for pos in self.pieces
         }
         return {pos: move for pos, move in all_moves.items() if move}
 
@@ -128,82 +338,7 @@ class Board:
         self[pos] = Piece()
 
 
-class Flag(Enum):
-    NONE = auto()
-    ENPASSANT_TRGT = auto()
-    ENPASSANT = auto()
-    CASTLE_LONG = auto()
-    CASTLE_SHORT = auto()
-    LOSE_KING_PRIV = auto()
-    LOSE_ROOK_PRIV = auto()
-
-
-@dataclass
-class Move:
-    to: Position
-    flag: Flag = Flag.NONE
-
-    @classmethod
-    def diag(cls, pos: Position, n=7) -> list[Self]:
-        moves = []
-        for i in range(1, n + 1):
-            NE = cls((pos[0] + i, pos[1] + i))
-            NW = cls((pos[0] + i, pos[1] - i))
-            SE = cls((pos[0] - i, pos[1] + i))
-            SW = cls((pos[0] - i, pos[1] - i))
-            moves.extend([NE, NW, SE, SW])
-        return moves
-
-    @classmethod
-    def perp(cls, pos: Position, n=7) -> list[Self]:
-        moves = []
-        for i in range(1, n + 1):
-            N = cls((pos[0] + i, pos[1]))
-            S = cls((pos[0] - i, pos[1]))
-            E = cls((pos[0], pos[1] + i))
-            W = cls((pos[0], pos[1] - i))
-            moves.extend([N, S, E, W])
-        return moves
-
-    @classmethod
-    def lshapes(cls, pos: Position) -> list[Self]:
-        moves = []
-        for quadrant in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
-            for magnitude in [(1, 2), (2, 1)]:
-                x, y = np.multiply(quadrant, magnitude)
-                moves.append(cls((pos[0] + x, pos[1] + y)))
-        return moves
-
-    @classmethod
-    def castle_short(cls, pos: Position) -> list[Self]:
-        SHORT = cls((pos[0], pos[1] + 2), Flag.CASTLE_SHORT)
-        return [SHORT]
-
-    @classmethod
-    def castle_long(cls, pos: Position) -> list[Self]:
-        LONG = cls((pos[0], pos[1] - 2), Flag.CASTLE_LONG)
-        return [LONG]
-
-    @classmethod
-    def pincer(cls, pos: Position, dir: int) -> list[Self]:
-        L = cls((pos[0] + dir, pos[1] + 1))
-        R = cls((pos[0] + dir, pos[1] - 1))
-        return [L, R]
-
-    @classmethod
-    def enpassant(cls, pos: Position, dir: int) -> list[Self]:
-        L = cls((pos[0] + dir, pos[1] + 1), Flag.ENPASSANT)
-        R = cls((pos[0] + dir, pos[1] - 1), Flag.ENPASSANT)
-        return [L, R]
-
-    @classmethod
-    def front_short(cls, pos: Position, dir: int) -> list[Self]:
-        return [cls((pos[0] + dir, pos[1]))]
-
-    @classmethod
-    def front_long(cls, pos: Position, dir: int) -> list[Self]:
-        return [cls((pos[0] + 2 * dir, pos[1]), Flag.ENPASSANT_TRGT)]
-        # TODO: Dont allow move if mouse release was away from tile
+# TODO: Dont allow move if mouse release was away from tile
 
 
 def get_moves_empty(*args, **kwargs) -> list[Move]:
@@ -216,68 +351,61 @@ def get_moves_pawn(board: Board, pos: Position) -> list[Move]:
 
     enpassant = [
         move
-        for move in Move.enpassant(pos, dir)
-        if Checks.final(board, pos, move)
-        and PawnCheck.enpassant_valid(board, pos, move)
+        for move in enpassant_m(pos, dir)
+        if final_checks(board, pos, move) and enpassant_valid(board, pos, move)
     ]
 
     pincer = [
         move
-        for move in Move.pincer(pos, dir)
-        if Checks.final(board, pos, move) and PawnCheck.pincer_valid(board, pos, move)
+        for move in pincer_m(pos, dir)
+        if final_checks(board, pos, move) and pincer_valid(board, pos, move)
     ]
 
     front_long = [
         move
-        for move in Move.front_long(pos, dir)
-        if Checks.final(board, pos, move)
-        and PawnCheck.front_long_valid(board, pos, move)
+        for move in front_long_m(pos, dir)
+        if final_checks(board, pos, move) and front_long_valid(board, pos, move)
     ]
 
     front_short = [
         move
-        for move in Move.front_short(pos, dir)
-        if Checks.final(board, pos, move)
-        and PawnCheck.front_short_valid(board, pos, move)
+        for move in front_short_m(pos, dir)
+        if final_checks(board, pos, move) and front_short_valid(board, pos, move)
     ]
     all_moves = enpassant + pincer + front_long + front_short
     return all_moves
 
 
 def get_moves_rook(board: Board, pos: Position) -> list[Move]:
-    all_moves = [move for move in Move.perp(pos) if Checks.final(board, pos, move)]
+    all_moves = [move for move in perp_m(pos) if final_checks(board, pos, move)]
     for move in all_moves:
         move.flag = Flag.LOSE_ROOK_PRIV
     return all_moves
 
 
 def get_moves_knight(board: Board, pos: Position) -> list[Move]:
-    return [move for move in Move.lshapes(pos) if Checks.final(board, pos, move)]
+    return [move for move in lshapes_m(pos) if final_checks(board, pos, move)]
 
 
 def get_moves_bishop(board: Board, pos: Position) -> list[Move]:
-    return [move for move in Move.diag(pos) if Checks.final(board, pos, move)]
+    return [move for move in diag_m(pos) if final_checks(board, pos, move)]
 
 
 def get_moves_queen(board: Board, pos: Position) -> list[Move]:
-    all_moves = Move.diag(pos) + Move.perp(pos)
-    return [move for move in all_moves if Checks.final(board, pos, move)]
+    all_moves = diag_m(pos) + perp_m(pos)
+    return [move for move in all_moves if final_checks(board, pos, move)]
 
 
 def get_moves_king(board: Board, pos: Position) -> list[Move]:
-    castle_short = [
-        move for move in Move.castle_short(pos) if KingCheck.castle_short_valid(board)
-    ]
-    castle_long = [
-        move for move in Move.castle_long(pos) if KingCheck.castle_long_valid(board)
-    ]
+    castle_short = [move for move in castle_short_m(pos) if castle_short_valid(board)]
+    castle_long = [move for move in castle_long_m(pos) if castle_long_valid(board)]
 
-    normal_moves = Move.diag(pos, 1) + Move.perp(pos, 1)
+    normal_moves = diag_m(pos, 1) + perp_m(pos, 1)
     for move in normal_moves:
         move.flag = Flag.LOSE_KING_PRIV
 
     all_moves = normal_moves + castle_long + castle_short
-    return [move for move in all_moves if Checks.final(board, pos, move)]
+    return [move for move in all_moves if final_checks(board, pos, move)]
 
 
 ValidMoveCalculator = Callable[[Board, Position], list[Move]]
@@ -291,217 +419,3 @@ MOVE_CALCULATORS: dict[PieceType, ValidMoveCalculator] = {
     PieceType.KING: get_moves_king,
     PieceType.PAWN: get_moves_pawn,
 }
-
-
-class KingCheck:
-    @staticmethod
-    def safe(board: Board, pos: Position, color: PieceColor) -> bool:
-        enemy_color = (
-            PieceColor.WHITE if color == PieceColor.BLACK else PieceColor.BLACK
-        )
-
-        dir = -1 if color == PieceColor.WHITE else 1
-
-        enemy_knight = [
-            1
-            for move in Move.lshapes(pos)
-            if Checks.to_pos_in_grid(move)
-            and board[move.to] == Piece(enemy_color, PieceType.KNIGHT)
-        ]
-
-        # check perpendiculars
-        enemy_rook_queen = [
-            1
-            for move in Move.perp(pos)
-            if Checks.to_pos_in_grid(move)
-            and board[move.to]
-            in (Piece(enemy_color, PieceType.ROOK), Piece(enemy_color, PieceType.QUEEN))
-            and Checks.no_obstruction(board, pos, move)
-        ]
-
-        # check diagonals
-        enemy_bishop_queen = [
-            1
-            for move in Move.diag(pos)
-            if Checks.to_pos_in_grid(move)
-            and board[move.to]
-            in (
-                Piece(enemy_color, PieceType.BISHOP),
-                Piece(enemy_color, PieceType.QUEEN),
-            )
-            and Checks.no_obstruction(board, pos, move)
-        ]
-
-        # check adjacent for king
-        enemy_king = [
-            1
-            for move in Move.perp(pos, 1) + Move.diag(pos, 1)
-            if Checks.to_pos_in_grid(move)
-            and board[move.to] == Piece(enemy_color, PieceType.KING)
-        ]
-
-        # check pincer for pawn
-        enemy_pawn = [
-            1
-            for move in Move.pincer(pos, dir)
-            if Checks.to_pos_in_grid(move)
-            and board[move.to] == Piece(enemy_color, PieceType.PAWN)
-        ]
-
-        all_enemies = (
-            enemy_knight
-            + enemy_rook_queen
-            + enemy_bishop_queen
-            + enemy_king
-            + enemy_pawn
-        )
-
-        return not all_enemies
-
-    # TODO GET ALL POSSIBLE MOVES AND CHECK IF 0, IF YES THEN CHECKMATE, black/grey background?
-    # TODO KING IS RED IF CHECKED, OR! WHEN INVALID MOVE DUR TO CHECK
-    # TODO: IMPLEMENT DRAW FOR stALEMATE
-    @staticmethod
-    def castle_long_valid(board: Board) -> bool:
-        row = 7 if board.color_turn == PieceColor.WHITE else 0
-
-        pos_pass_long = KingCheck.safe(board, (row, 3), board.color_turn)
-        clear_lane = not [
-            1
-            for btwn_pos in [
-                (row, 1),
-                (row, 2),
-                (row, 3),
-            ]
-            if board[btwn_pos]
-        ]
-
-        king_not_checked = KingCheck.safe(board, (row, 4), board.color_turn)
-
-        priviledge = board.castling_flags[board.color_turn][0]
-        return pos_pass_long and clear_lane and king_not_checked and priviledge
-
-    @staticmethod
-    def castle_short_valid(board: Board) -> bool:
-        row = 7 if board.color_turn == PieceColor.WHITE else 0
-
-        pos_pass_short = KingCheck.safe(board, (row, 5), board.color_turn)
-        clear_lane = not [
-            1
-            for btwn_pos in [
-                (row, 5),
-                (row, 6),
-            ]
-            if board[btwn_pos]
-        ]
-
-        king_not_checked = KingCheck.safe(board, (row, 4), board.color_turn)
-
-        priviledge = board.castling_flags[board.color_turn][1]
-        return pos_pass_short and clear_lane and king_not_checked and priviledge
-
-
-class PawnCheck:
-    @staticmethod
-    def enpassant_valid(board: Board, pos: Position, move: Move) -> bool:
-        to = move.to
-        enemy_pawn = (pos[0], to[1])
-        return board.enpassant_target == enemy_pawn
-
-    @staticmethod
-    def pincer_valid(board: Board, pos: Position, move: Move) -> bool:
-        to = move.to
-        if not board[to]:
-            return False
-        if board[move.to].color != board[pos].color:
-            return True
-        return False
-
-    @staticmethod
-    def front_long_valid(board: Board, pos: Position, move: Move) -> bool:
-        to = move.to
-        color_turn = board.color_turn
-
-        starting_rank = pos[0] == (6 if color_turn == PieceColor.WHITE else 1)
-        to_is_empty = not board[to]
-        return starting_rank and to_is_empty
-
-    @staticmethod
-    def front_short_valid(board: Board, pos: Position, move: Move) -> bool:
-        to = move.to
-        to_piece = board[to]
-
-        return to_piece.type == PieceType.EMPTY
-
-
-class Checks:
-    @staticmethod
-    def to_pos_in_grid(move: Move) -> bool:
-        to = move.to
-
-        return max(to) <= 7 and min(to) >= 0
-
-    @staticmethod
-    def is_color_turn(board: Board, pos: Position) -> bool:
-        color_turn = board.color_turn
-        piece = board[pos]
-
-        return color_turn == piece.color
-
-    @staticmethod
-    def to_empty_or_enemy(board: Board, pos: Position, move: Move) -> bool:
-        to = move.to
-        color_turn = board.color_turn
-        to_piece = board[to]
-
-        return to_piece.color != color_turn or to_piece.color == PieceColor.NONE
-
-    @staticmethod
-    def no_obstruction(board: Board, pos: Position, move: Move) -> bool:
-        to = move.to
-        pos_x, pos_y = pos
-        to_x, to_y = to
-
-        X = range(pos_x, to_x, 1 if to_x > pos_x else -1)
-        Y = range(pos_y, to_y, 1 if to_y > pos_y else -1)
-
-        # short moves and knights have no obstruction
-        if min(len(X), len(Y)) == 1:
-            return True
-
-        # If both exist, diag move
-        if X and Y:
-            obstructions = [1 for xy in zip(X, Y) if xy != pos and board[xy]]
-
-        # If x exists, perp col, same column
-        elif X:
-            obstructions = [1 for x in X if (x, pos_y) != pos and board[x, pos_y]]
-
-        # Else y exists, perp col, same row
-        else:
-            obstructions = [1 for y in Y if (pos_x, y) != pos and board[pos_x, y]]
-
-        return not obstructions
-
-    @staticmethod
-    def king_safe_at_end(board: Board, pos: Position, move: Move) -> bool:
-        to, flag = move.to, move.flag
-
-        end_board = deepcopy(board)
-        end_board[to] = end_board[pos]
-        del end_board[pos]
-
-        if flag == Flag.ENPASSANT:
-            del end_board[end_board.enpassant_target]
-
-        return KingCheck.safe(end_board, end_board.king_pos, board.color_turn)
-
-    @staticmethod
-    def final(board: Board, pos: Position, move: Move) -> bool:
-        return (
-            Checks.to_pos_in_grid(move)
-            and Checks.is_color_turn(board, pos)
-            and Checks.to_empty_or_enemy(board, pos, move)
-            and Checks.no_obstruction(board, pos, move)
-            and Checks.king_safe_at_end(board, pos, move)
-        )

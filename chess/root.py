@@ -5,15 +5,16 @@ from itertools import product
 from tkinter import GROOVE, Button, Event, Tk, Widget
 from tkinter.messagebox import showinfo
 from typing import Callable
-
-# from playsound import playsound
+from .move import Move
 
 from tksvg import SvgImage
 
-from .board import Board, Flag, Move
+from .board import Board, Flag
 from .constants import SIZE, THEME
 from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
 from .types import Position
+
+# from playsound import playsound
 
 
 class State(Enum):
@@ -44,7 +45,6 @@ class Root(Tk):
         self.board = Board()
 
         self.selected_pos = None
-
 
     @property
     def candidates(self) -> list[Move]:
@@ -114,7 +114,7 @@ class Root(Tk):
         single_move(frm, to)
 
         self.board.move_counter += 1
-        if self.board.move_counter >= (n_moves:= 20):
+        if self.board.move_counter >= (n_moves := 20):
             print(f"{n_moves} moves since last capture or pawn move!")
             showinfo("DRAW!", f"{n_moves} move rule!")
         # TODO: PROMOTION LOGIC
@@ -138,7 +138,6 @@ class Root(Tk):
         if self.board.stalemated:
             print("STALEMATE!")
             showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
-            
 
     def __getitem__(self, pos: Position) -> Piece:
         return self.board[pos]
