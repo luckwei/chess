@@ -35,6 +35,7 @@ class Display(Tk):
         }
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
+        self.geometry(f"{(side:=SIZE.TILE*8)}x{side}")
 
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
@@ -64,7 +65,6 @@ class Display(Tk):
         return self.grid_slaves()
 
     def btn(self, pos: Position) -> Widget:
-
         return self.grid_slaves(*pos)[0]
 
     def reset_bg(self, pos: Position, state: State = State.DEFAULT) -> None:
@@ -80,7 +80,7 @@ class Display(Tk):
         )
 
 
-class Game_Engine:
+class Game:
     def __init__(self) -> None:
         self.board = Board.from_fen(Setup.START)
 
@@ -148,10 +148,73 @@ class Game_Engine:
 class Root:
     def __init__(self):
         self.display = Display()
-        self.game = Game_Engine()
+        self.game = Game()
         self.setup_buttons()
 
     def setup_buttons(self):
+        def __bind_factory(pos: Position):
+            def on_click(e: Event) -> None:
+                # There was a selected move previously
+                if self.display.selected_pos:
+                    self.display.reset_bg(self.display.selected_pos)
+
+                    for move in self.game.board.all_moves[self.display.selected_pos]:
+                        to = move
+                        self.display.reset_bg(to)
+                    # Check all moves
+                    for move in self.game.board.all_moves[self.display.selected_pos]:
+                        to, flag = move, move.flag
+
+                        if pos == self.display.selected_pos:
+
+                            self.display.selected_pos = None
+                            return
+
+                        if pos == to:
+
+                            self.game.move_piece(self.display.selected_pos, to, flag)
+
+                            self.display.selected_pos = None
+                            return
+
+                if pos not in self.game.board.all_moves:
+                    return
+                self.display.reset_bg(pos, State.SELECTED)
+                for move in self.game.board.all_moves[pos]:
+                    self.display.reset_bg(
+                        move,
+                        State.CAPTURABLE if self.game.board[move] else State.MOVABLE,
+                    )
+
+                self.display.selected_pos = pos
+
+            def on_enter(e: Event) -> None:
+                if self.display.selected_pos:
+                    return
+
+                if pos not in self.game.board.all_moves:
+                    return
+
+                for move in self.game.board.all_moves[pos]:
+                    self.display.reset_bg(
+                        move,
+                        State.CAPTURABLE if self.game.board[move] else State.MOVABLE,
+                    )
+
+            def on_exit(e: Event) -> None:
+                if self.display.selected_pos:
+                    return
+
+                if pos not in self.game.board.all_moves:
+                    return
+
+                self.display.reset_bg(pos)
+
+                for move in self.game.board.all_moves[pos]:
+                    self.display.reset_bg(move)
+
+            return on_click, on_enter, on_exit
+
         for pos in product(range(8), range(8)):
             button = Button(
                 self.display,
@@ -160,78 +223,10 @@ class Root:
                 height=SIZE.TILE,
                 width=SIZE.TILE,
             )
-            on_click, on_enter, on_exit = self.__bind_factory(pos)
+            on_click, on_enter, on_exit = __bind_factory(pos)
             button.bind("<ButtonRelease-1>", on_click)
             button.bind("<Enter>", on_enter)
             button.bind("<Leave>", on_exit)
 
             button.grid(row=pos[0], column=pos[1])
             self.display.reset_bg(pos)
-
-    def __bind_factory(
-        self, pos: Position
-    ) -> tuple[
-        Callable[[Event], None], Callable[[Event], None], Callable[[Event], None]
-    ]:
-        def on_click(e: Event) -> None:
-
-            # There was a selected move previously
-            if self.display.selected_pos:
-                self.display.reset_bg(self.display.selected_pos)
-
-                for move in self.game.board.all_moves[self.display.selected_pos]:
-                    to = move
-                    self.display.reset_bg(to)
-                # Check all moves
-                for move in self.game.board.all_moves[self.display.selected_pos]:
-                    to, flag = move, move.flag
-
-                    if pos == self.display.selected_pos:
-
-                        self.display.selected_pos = None
-                        return
-                    # If clicked is same as move execute it and return
-                    if pos == to:
-                        # playsound("res/sound/s1.wav", False)
-
-                        self.game.move_piece(self.display.selected_pos, to, flag)
-
-                        self.display.selected_pos = None
-                        return
-
-            if pos not in self.game.board.all_moves:
-                return
-            self.display.reset_bg(pos, State.SELECTED)
-            for move in self.game.board.all_moves[pos]:
-                self.display.reset_bg(
-                    move, State.CAPTURABLE if self.game.board[move] else State.MOVABLE
-                )
-
-            self.display.selected_pos = pos
-
-        def on_enter(e: Event) -> None:
-            if self.display.selected_pos:
-                return
-
-            if pos not in self.game.board.all_moves:
-                return
-
-            for move in self.game.board.all_moves[pos]:
-                self.display.reset_bg(
-                    move, State.CAPTURABLE if self.game.board[move] else State.MOVABLE
-                )
-
-        def on_exit(e: Event) -> None:
-            if self.display.selected_pos:
-                return
-
-            if pos not in self.game.board.all_moves:
-                return
-
-            self.display.reset_bg(pos)
-
-            for move in self.game.board.all_moves[pos]:
-                self.display.reset_bg(move)
-
-        return on_click, on_enter, on_exit
-    
