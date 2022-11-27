@@ -1,1 +1,2 @@
 Position = tuple[int, int]
+

@@ -2,16 +2,15 @@ from __future__ import annotations
 
 from enum import Enum, auto
 from itertools import product
-from tkinter import GROOVE, Button, Event, Tk, Widget
+from tkinter import Button, Event, Tk, Widget
 from tkinter.messagebox import showinfo
 from typing import Callable
-from .move import Move
 
 from tksvg import SvgImage
 
-from .board import Board, Flag
 from .constants import SIZE, THEME
-from .piece import COLOR_TYPE, Piece, PieceColor, PieceType
+from .game import COLOR_TYPE, Color, Empty, Flag, Game, Move
+from .setup import Setup
 from .types import Position
 
 # from playsound import playsound
@@ -30,7 +29,7 @@ class Root(Tk):
 
         self.__IMG_DICT = {
             (type, color): SvgImage(
-                file=f"res/{type}_{color}.svg", scaletowidth=SIZE.PIECE
+                file=f"res/{type.__name__.lower()}_{color}.svg", scaletowidth=SIZE.PIECE
             )
             for color, type in COLOR_TYPE
         }
@@ -42,7 +41,7 @@ class Root(Tk):
         self.bind("<q>", lambda e: self.reset())
 
         self.setup_buttons()
-        self.board = Board()
+        self.game = Game.from_fen(Setup.START)
 
         self.selected_pos = None
 
@@ -65,8 +64,6 @@ class Root(Tk):
                 self,
                 activebackground=THEME.ACTIVE_BG,
                 bd=0,
-                # relief=GROOVE,
-                # overrelief=GROOVE,
                 height=SIZE.TILE,
                 width=SIZE.TILE,
             )
@@ -78,83 +75,72 @@ class Root(Tk):
             button.grid(row=pos[0], column=pos[1])
             self.reset_bg(pos)
 
-    def move_piece(self, frm: Position, to: Position, flag=Flag.NONE) -> None:
+    def move_piece(self, frm: Position, to: Position, flag: Flag = Flag.NONE) -> None:
         def single_move(frm: Position, to: Position) -> None:
-            self[to] = self[frm]
+            self.game[to] = self.game[frm]
             del self[frm]
 
         match flag:
             case Flag.CASTLE_LONG:
-                row = 7 if self.board.color_turn == PieceColor.WHITE else 0
+                row = 7 if self.game.color_to_move == Color.WHITE else 0
                 single_move((row, 0), (row, 3))
-                self.board.castling_flags[self.board.color_turn] = [False, False]
+                self.game.castling_flags[self.game.color_to_move] = [False, False]
 
             case Flag.CASTLE_SHORT:
-                row = 7 if self.board.color_turn == PieceColor.WHITE else 0
+                row = 7 if self.game.color_to_move == Color.WHITE else 0
                 single_move((row, 7), (row, 5))
-                self.board.castling_flags[self.board.color_turn] = [False, False]
+                self.game.castling_flags[self.game.color_to_move] = [False, False]
 
             case Flag.LOSE_KING_PRIV:
-                self.board.castling_flags[self.board.color_turn] = [False, False]
+                self.game.castling_flags[self.game.color_to_move] = [False, False]
             case Flag.LOSE_ROOK_PRIV:
-                row = 7 if self.board.color_turn == PieceColor.WHITE else 0
+                row = 7 if self.game.color_to_move == Color.WHITE else 0
                 if frm == (row, 0):
-                    self.board.castling_flags[self.board.color_turn][0] = False
+                    self.game.castling_flags[self.game.color_to_move][0] = False
                 if frm == (row, 7):
-                    self.board.castling_flags[self.board.color_turn][1] = False
+                    self.game.castling_flags[self.game.color_to_move][1] = False
 
             case Flag.ENPASSANT:
-                del self[self.board.enpassant_target]
+                del self[self.game.enpassant_target]
 
-        self.board.enpassant_target = to if flag == Flag.ENPASSANT_TRGT else None
-
-        if self[frm].type == PieceType.PAWN or self[to]:
-            self.board.move_counter = 0
+        self.game.enpassant_target = to if flag == Flag.ENPASSANT_TRGT else None
 
         single_move(frm, to)
 
-        self.board.move_counter += 1
-        if self.board.move_counter >= (n_moves := 20):
-            print(f"{n_moves} moves since last capture or pawn move!")
-            showinfo("DRAW!", f"{n_moves} move rule!")
         # TODO: PROMOTION LOGIC
         # TODO:UNDO MOVE
 
         # TODO: CHECKS WILL alert the user
-        self.board.toggle_color_turn()
-        self.all_moves = self.board.all_moves
+        self.game.toggle_color_turn()
 
         # TODO: ADD SOUNDS!
-        if self.board.checked:
+        if self.game.checked:
             print("CHECKED!")
 
-        if self.board.checkmated:
+        if self.game.checkmated:
             print("CHECKMATE!")
             showinfo(
                 "Game ended!",
-                f"{self.board.enemy_color} WINS by CHECKMATE!\nPress q to start new game..",
+                f"{self.game.color_to_move.other} WINS by CHECKMATE!\nPress q to start new game..",
             )
 
-        if self.board.stalemated:
+        if self.game.stalemated:
             print("STALEMATE!")
             showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
 
-    def __getitem__(self, pos: Position) -> Piece:
-        return self.board[pos]
-
-    def __setitem__(self, pos: Position, piece: Piece) -> None:
-        self.board[pos] = piece
-        self.btn(pos)["image"] = self.__IMG_DICT[piece.type, piece.color]
+    def __setitem__(self, pos: Position, piece: Empty) -> None:
+        self.game[pos] = piece
+        self.btn(pos)["image"] = self.__IMG_DICT[type(piece), piece.color]
 
     def __delitem__(self, pos: Position | None) -> None:
         if pos is None:
             return
-        del self.board[pos]
-        self.btn(pos)["image"] = self.__IMG_DICT[PieceType.EMPTY, PieceColor.NONE]
+        del self.game[pos]
+        self.btn(pos)["image"] = self.__IMG_DICT[Empty, Color.NONE]
 
     # TODO: AT END/START OF EVERY MOVE FIND ALL POSSIBLE MOVES PLACE THEM IN A dict[Position, list[Move]] and use checking to see hover and clicking logic
     # STALEMATE/CHECKMATE LOGIC, check logic is just seeing whether king is under attack currently using
-    # not KingChecks.safe(self.board.color_turn)
+    # not KingChecks.safe(self.game.color_to_move)
 
     def reset_bg(self, pos: Position, state: State = State.DEFAULT) -> None:
         match state:
@@ -173,19 +159,18 @@ class Root(Tk):
         self.btn(pos)["bg"] = bg
 
     @property
-    def board(self) -> Board:
-        return self._board
+    def game(self) -> Game:
+        return self._game
 
-    @board.setter
-    def board(self, board: Board) -> None:
-        self._board = board
-        for pos, piece in self.board.pieces.items():
-            self.btn(pos)["image"] = self.__IMG_DICT[piece.type, piece.color]
+    @game.setter
+    def game(self, game: Game) -> None:
+        self._game = game
+        for pos, piece in self.game.board.items():
+            self.btn(pos)["image"] = self.__IMG_DICT[type(piece), piece.color]
             self.reset_bg(pos)
-        self.all_moves = self.board.all_moves
 
     def reset(self) -> None:
-        self.board = Board()
+        self.game = Game()
         self.selected_pos = None
 
     def btn(self, pos: Position) -> Widget:
@@ -202,12 +187,12 @@ class Root(Tk):
             if self.selected_pos:
                 self.reset_bg(self.selected_pos)
 
-                for move in self.all_moves[self.selected_pos]:
-                    to = move.to
+                for move in self.game.all_moves[self.selected_pos]:
+                    to = move
                     self.reset_bg(to)
                 # Check all moves
-                for move in self.all_moves[self.selected_pos]:
-                    to, flag = move.to, move.flag
+                for move in self.game.all_moves[self.selected_pos]:
+                    to, flag = move, move.flag
 
                     if pos == self.selected_pos:
 
@@ -222,13 +207,13 @@ class Root(Tk):
                         self.selected_pos = None
                         return
 
-            if pos not in self.all_moves:
+            if pos not in self.game.all_moves:
                 return
 
             self.reset_bg(pos, State.SELECTED)
-            for move in self.all_moves[pos]:
+            for move in self.game.all_moves[pos]:
                 self.reset_bg(
-                    move.to, State.CAPTURABLE if self[move.to] else State.MOVABLE
+                    move, State.CAPTURABLE if self.game[move] else State.MOVABLE
                 )
 
             self.selected_pos = pos
@@ -237,24 +222,24 @@ class Root(Tk):
             if self.selected_pos:
                 return
 
-            if pos not in self.all_moves:
+            if pos not in self.game.all_moves:
                 return
 
-            for move in self.all_moves[pos]:
+            for move in self.game.all_moves[pos]:
                 self.reset_bg(
-                    move.to, State.CAPTURABLE if self[move.to] else State.MOVABLE
+                    move, State.CAPTURABLE if self.game[move] else State.MOVABLE
                 )
 
         def on_exit(e: Event) -> None:
             if self.selected_pos:
                 return
 
-            if pos not in self.all_moves:
+            if pos not in self.game.all_moves:
                 return
 
             self.reset_bg(pos)
 
-            for move in self.all_moves[pos]:
-                self.reset_bg(move.to)
+            for move in self.game.all_moves[pos]:
+                self.reset_bg(move)
 
         return on_click, on_enter, on_exit
