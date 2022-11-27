@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections import UserDict
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -35,7 +35,7 @@ class Color(StrEnum):
 
 # Chess Pieces and it's subclass
 @dataclass
-class Piece:
+class Piece(ABC):
     color: Color
 
     @property
@@ -60,7 +60,7 @@ class Empty(Piece):
     def __bool__(self):
         return False
 
-    def get_moves(self, *args, **kwargs) -> list[Move]:
+    def get_moves(self, *args, **kwargs) -> list:
         return []
 
 
@@ -73,40 +73,91 @@ class Pawn(Piece):
         /,
         enpassant_target: Position | None,
         **kwargs,
-    ) -> list[Move]:
+    ) -> filter[Move]:
+        def get_moves_pawn(
+            board: Board, pos: Position, color: Color, enpassant_target: Position | None
+        ) -> filter[Move]:
+            """Priority: Empassat, Pincer, Long, Short"""
+            dir = color.dir
+
+            enpassant = filter(
+                lambda m: enpassant_valid(pos, m, enpassant_target),
+                enpassant_m(pos, dir),
+            )
+
+            pincer = filter(lambda m: pincer_valid(board, pos, m), pincer_m(pos, dir))
+
+            front_long = filter(
+                lambda m: front_long_valid(board, pos, m, color), front_long_m(pos, dir)
+            )
+
+            front_short = filter(
+                lambda m: front_short_valid(board, m), front_short_m(pos, dir)
+            )
+            all_moves = (*enpassant, *pincer, *front_long, *front_short)
+
+            return filter(
+                lambda m: final_checks(board, pos, m, color, enpassant_target),
+                all_moves,
+            )
+
         return get_moves_pawn(board, pos, self.color, enpassant_target)
 
 
 @dataclass
 class Rook(Piece):
-    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> filter[Move]:
+        def get_moves_rook(board: Board, pos: Position, color: Color) -> filter[Move]:
+            all_moves = perp_m(pos)
+            for move in all_moves:
+                move.flag = Flag.LOSE_ROOK_PRIV
+            return filter(lambda m: final_checks(board, pos, m, color), all_moves)
+
         return get_moves_rook(board, pos, self.color)
 
 
 @dataclass
 class Knight(Piece):
-    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> filter[Move]:
+        def get_moves_knight(board: Board, pos: Position, color: Color) -> filter[Move]:
+            all_moves = lshapes_m(pos)
+            return filter(lambda m: final_checks(board, pos, m, color), all_moves)
+
         return get_moves_knight(board, pos, self.color)
 
 
 @dataclass
 class Bishop(Piece):
-    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
-        return get_moves_bishop(board, pos, self.color)
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> filter[Move]:
+        return filter(lambda m: final_checks(board, pos, m, self.color), diag_m(pos))
 
 
 @dataclass
 class Queen(Piece):
-    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
-        return get_moves_queen(board, pos, self.color)
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> filter[Move]:
+        all_moves = (*diag_m(pos), *perp_m(pos))
+        return filter(lambda m: final_checks(board, pos, m, self.color), all_moves)
 
 
 @dataclass
 class King(Piece):
     def get_moves(
         self, board: Board, pos: Position, /, castling_flags: CastlingFlags, **kwargs
-    ) -> list[Move]:
-        return get_moves_king(board, pos, self.color, castling_flags)
+    ) -> filter[Move]:
+        color = self.color
+        all_moves = []
+        if castle_short_valid(board, color, castling_flags):
+            all_moves.append(castle_short_m(pos))
+
+        if castle_long_valid(board, color, castling_flags):
+            all_moves.append(castle_long_m(pos))
+
+        all_moves.extend((*diag_m(pos, 1), *perp_m(pos, 1)))
+
+        for move in all_moves:
+            move.flag = Flag.LOSE_KING_PRIV
+
+        return filter(lambda m: final_checks(board, pos, m, color), all_moves)
 
 
 FEN_MAP: dict[str, tuple[Color, Type[Piece]]] = {
@@ -132,43 +183,41 @@ CastlingFlags = dict[Color, list[bool]]
 def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     enemy_color = color.other
 
-    enemy_knight = any(
+    if any(
         type(board[move]) == Knight and board[move].color == enemy_color
         for move in lshapes_m(pos)
-    )
+    ):
+        return False
 
     # check perpendiculars
-    enemy_rook_queen = any(
+    if any(
         type(board[move]) in (Queen, Rook)
         and board[move].color == enemy_color
         and no_obstruction(board, pos, move)
         for move in perp_m(pos)
-    )
+    ):
+        return False
 
     # check diagonals
-    enemy_bishop_queen = any(
+    if any(
         type(board[move]) in (Queen, Bishop)
         and board[move].color == enemy_color
         and no_obstruction(board, pos, move)
         for move in diag_m(pos)
-    )
+    ):
+        return False
 
     # check adjacent for king
-    enemy_king = any(
+    if any(
         type(board[move]) == King and board[move].color == enemy_color
-        for move in perp_m(pos, 1) + diag_m(pos, 1)
-    )
+        for move in (*perp_m(pos, 1), *diag_m(pos, 1))
+    ):
+        return False
 
     # check pincer for pawn
-    enemy_pawn = any(
+    return not any(
         type(board[move]) == King and board[move].color == enemy_color
         for move in pincer_m(pos, color.dir)
-    )
-
-    # TODO: SEPARATE UI AND BACKEND LOGIC WITHIN ROOT
-
-    return not any(
-        [enemy_knight, enemy_rook_queen, enemy_bishop_queen, enemy_king, enemy_pawn]
     )
 
 
@@ -296,16 +345,6 @@ def final_checks(
     )
 
 
-def final_checks_filter(
-    moves: list[Move],
-    board: Board,
-    pos: Position,
-    color: Color,
-    enpassant_target: Position | None = None,
-):
-    return [m for m in moves if final_checks(board, pos, m, color, enpassant_target)]
-
-
 class Flag(Enum):
     NONE = auto()
     ENPASSANT_TRGT = auto()
@@ -324,11 +363,11 @@ class Move(tuple):
         self.flag = flag
 
 
-def in_bounds_filter(pos_list):
-    return [p for p in pos_list if max(p) <= 7 and min(p) >= 0]
+def in_bounds(p):
+    return max(p) <= 7 and min(p) >= 0
 
 
-def diag_m(pos: Position, n=7) -> list[Move]:
+def diag_m(pos: Position, n=7) -> filter[Move]:
     moves = []
     for i in range(1, n + 1):
         NE = Move((pos[0] + i, pos[1] + i))
@@ -336,10 +375,10 @@ def diag_m(pos: Position, n=7) -> list[Move]:
         SE = Move((pos[0] - i, pos[1] + i))
         SW = Move((pos[0] - i, pos[1] - i))
         moves.extend([NE, NW, SE, SW])
-    return in_bounds_filter(moves)
+    return filter(in_bounds, moves)
 
 
-def perp_m(pos: Position, n=7) -> list[Move]:
+def perp_m(pos: Position, n=7) -> filter[Move]:
     moves = []
     for i in range(1, n + 1):
         N = Move((pos[0] + i, pos[1]))
@@ -347,120 +386,48 @@ def perp_m(pos: Position, n=7) -> list[Move]:
         E = Move((pos[0], pos[1] + i))
         W = Move((pos[0], pos[1] - i))
         moves.extend([N, S, E, W])
-    return in_bounds_filter(moves)
+    return filter(in_bounds, moves)
 
 
-def lshapes_m(pos: Position) -> list[Move]:
+def lshapes_m(pos: Position) -> filter[Move]:
     moves = []
     for quadrant in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
         for magnitude in [(1, 2), (2, 1)]:
             x, y = np.multiply(quadrant, magnitude)
             moves.append(Move((pos[0] + x, pos[1] + y)))
-    return in_bounds_filter(moves)
+    return filter(in_bounds, moves)
 
 
-def castle_short_m(pos: Position) -> list[Move]:
-    return [Move((pos[0], pos[1] + 2), Flag.CASTLE_SHORT)]
+def castle_short_m(pos: Position) -> Move:
+    return Move((pos[0], pos[1] + 2), Flag.CASTLE_SHORT)
 
 
-def castle_long_m(pos: Position) -> list[Move]:
-    return [Move((pos[0], pos[1] - 2), Flag.CASTLE_LONG)]
+def castle_long_m(pos: Position) -> Move:
+    return Move((pos[0], pos[1] - 2), Flag.CASTLE_LONG)
 
 
-def pincer_m(pos: Position, dir: int) -> list[Move]:
+def pincer_m(pos: Position, dir: int) -> filter[Move]:
     L = Move((pos[0] + dir, pos[1] + 1))
     R = Move((pos[0] + dir, pos[1] - 1))
-    return in_bounds_filter([L, R])
+    return filter(in_bounds, (L, R))
 
 
-def enpassant_m(pos: Position, dir: int) -> list[Move]:
+def enpassant_m(pos: Position, dir: int) -> filter[Move]:
     L = Move((pos[0] + dir, pos[1] + 1), Flag.ENPASSANT)
     R = Move((pos[0] + dir, pos[1] - 1), Flag.ENPASSANT)
-    return in_bounds_filter([L, R])
+    return filter(in_bounds, (L, R))
 
 
-def front_short_m(pos: Position, dir: int) -> list[Move]:
-    return [Move((pos[0] + dir, pos[1]))]
+def front_short_m(pos: Position, dir: int) -> Move:
+    return Move((pos[0] + dir, pos[1]))
 
 
-def front_long_m(pos: Position, dir: int) -> list[Move]:
-    return [Move((pos[0] + 2 * dir, pos[1]), Flag.ENPASSANT_TRGT)]
+def front_long_m(pos: Position, dir: int) -> Move:
+    return Move((pos[0] + 2 * dir, pos[1]), Flag.ENPASSANT_TRGT)
 
 
-def get_moves_empty(*args, **kwargs) -> list[Move]:
-    return []
-
-
-def get_moves_pawn(
-    board: Board, pos: Position, color: Color, enpassant_target: Position | None
-) -> list[Move]:
-    """Priority: Empassat, Pincer, Long, Short"""
-    dir = color.dir
-
-    enpassant = [
-        move
-        for move in enpassant_m(pos, dir)
-        if enpassant_valid(pos, move, enpassant_target)
-    ]
-
-    pincer = [move for move in pincer_m(pos, dir) if pincer_valid(board, pos, move)]
-
-    front_long = [
-        move
-        for move in front_long_m(pos, dir)
-        if front_long_valid(board, pos, move, color)
-    ]
-
-    front_short = [
-        move for move in front_short_m(pos, dir) if front_short_valid(board, move)
-    ]
-    all_moves = enpassant + pincer + front_long + front_short
-    return final_checks_filter(all_moves, board, pos, color, enpassant_target)
-
-
-def get_moves_rook(board: Board, pos: Position, color: Color) -> list[Move]:
-    all_moves = perp_m(pos)
-    for move in all_moves:
-        move.flag = Flag.LOSE_ROOK_PRIV
-    return final_checks_filter(all_moves, board, pos, color)
-
-
-def get_moves_knight(board: Board, pos: Position, color: Color) -> list[Move]:
-    all_moves = lshapes_m(pos)
-    return final_checks_filter(all_moves, board, pos, color)
-
-
-def get_moves_bishop(board: Board, pos: Position, color: Color) -> list[Move]:
-    all_moves = diag_m(pos)
-    return final_checks_filter(all_moves, board, pos, color)
-
-
-def get_moves_queen(board: Board, pos: Position, color: Color) -> list[Move]:
-    all_moves = diag_m(pos) + perp_m(pos)
-    return final_checks_filter(all_moves, board, pos, color)
-
-
-def get_moves_king(
-    board: Board, pos: Position, color: Color, castling_flags: CastlingFlags
-) -> list[Move]:
-    castle_short = [
-        move
-        for move in castle_short_m(pos)
-        if castle_short_valid(board, color, castling_flags)
-    ]
-    castle_long = [
-        move
-        for move in castle_long_m(pos)
-        if castle_long_valid(board, color, castling_flags)
-    ]
-
-    normal_moves = diag_m(pos, 1) + perp_m(pos, 1)
-
-    for move in normal_moves:
-        move.flag = Flag.LOSE_KING_PRIV
-
-    all_moves = normal_moves + castle_long + castle_short
-    return [move for move in all_moves if final_checks(board, pos, move, color)]
+def get_moves_empty(*args, **kwargs) -> tuple:
+    return tuple()
 
 
 EMPTY_BOARD: dict[Position, Piece] = {
