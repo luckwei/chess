@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections import UserDict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum, auto
@@ -9,6 +10,7 @@ from typing import Self, Type
 
 import numpy as np
 
+from .setup import Setup
 from .types import Position
 
 
@@ -31,9 +33,7 @@ class Color(StrEnum):
         return other_dict.get(self, Color.NONE)
 
 
-CastlingFlags = dict[Color, list[bool]]
-
-
+# Chess Pieces and it's subclass
 @dataclass
 class Piece:
     color: Color
@@ -45,7 +45,7 @@ class Piece:
     @abstractmethod
     def get_moves(
         self,
-        game: Game,
+        board: Board,
         pos: Position,
         enpassant_target: Position | None,
         castling_flags: CastlingFlags,
@@ -68,45 +68,45 @@ class Empty(Piece):
 class Pawn(Piece):
     def get_moves(
         self,
-        game: Game,
+        board: Board,
         pos: Position,
         /,
         enpassant_target: Position | None,
         **kwargs,
     ) -> list[Move]:
-        return get_moves_pawn(game, pos, self.color, enpassant_target)
+        return get_moves_pawn(board, pos, self.color, enpassant_target)
 
 
 @dataclass
 class Rook(Piece):
-    def get_moves(self, game: Game, pos: Position, **kwargs) -> list[Move]:
-        return get_moves_rook(game, pos, self.color)
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
+        return get_moves_rook(board, pos, self.color)
 
 
 @dataclass
 class Knight(Piece):
-    def get_moves(self, game: Game, pos: Position, **kwargs) -> list[Move]:
-        return get_moves_knight(game, pos, self.color)
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
+        return get_moves_knight(board, pos, self.color)
 
 
 @dataclass
 class Bishop(Piece):
-    def get_moves(self, game: Game, pos: Position, **kwargs) -> list[Move]:
-        return get_moves_bishop(game, pos, self.color)
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
+        return get_moves_bishop(board, pos, self.color)
 
 
 @dataclass
 class Queen(Piece):
-    def get_moves(self, game: Game, pos: Position, **kwargs) -> list[Move]:
-        return get_moves_queen(game, pos, self.color)
+    def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
+        return get_moves_queen(board, pos, self.color)
 
 
 @dataclass
 class King(Piece):
     def get_moves(
-        self, game: Game, pos: Position, /, castling_flags: CastlingFlags, **kwargs
+        self, board: Board, pos: Position, /, castling_flags: CastlingFlags, **kwargs
     ) -> list[Move]:
-        return get_moves_king(game, pos, self.color, castling_flags)
+        return get_moves_king(board, pos, self.color, castling_flags)
 
 
 FEN_MAP: dict[str, tuple[Color, Type[Piece]]] = {
@@ -125,56 +125,43 @@ FEN_MAP: dict[str, tuple[Color, Type[Piece]]] = {
     " ": (Color.NONE, Empty),
 }
 
-COLOR_TYPE: list[tuple[Color, Type[Piece]]] = [
-    (Color.NONE, Empty),
-    (Color.BLACK, Pawn),
-    (Color.BLACK, Knight),
-    (Color.BLACK, Bishop),
-    (Color.BLACK, Rook),
-    (Color.BLACK, Queen),
-    (Color.BLACK, King),
-    (Color.WHITE, Pawn),
-    (Color.WHITE, Knight),
-    (Color.WHITE, Bishop),
-    (Color.WHITE, Rook),
-    (Color.WHITE, Queen),
-    (Color.WHITE, King),
-]
+
+CastlingFlags = dict[Color, list[bool]]
 
 
-def kingcheck_safe(game: Game, pos: Position, color: Color) -> bool:
+def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     enemy_color = color.other
 
     enemy_knight = any(
-        type(game[move]) == Knight and game[move].color == enemy_color
+        type(board[move]) == Knight and board[move].color == enemy_color
         for move in lshapes_m(pos)
     )
 
     # check perpendiculars
     enemy_rook_queen = any(
-        type(game[move]) in (Queen, Rook)
-        and game[move].color == enemy_color
-        and no_obstruction(game, pos, move)
+        type(board[move]) in (Queen, Rook)
+        and board[move].color == enemy_color
+        and no_obstruction(board, pos, move)
         for move in perp_m(pos)
     )
 
     # check diagonals
     enemy_bishop_queen = any(
-        type(game[move]) in (Queen, Bishop)
-        and game[move].color == enemy_color
-        and no_obstruction(game, pos, move)
+        type(board[move]) in (Queen, Bishop)
+        and board[move].color == enemy_color
+        and no_obstruction(board, pos, move)
         for move in diag_m(pos)
     )
 
     # check adjacent for king
     enemy_king = any(
-        type(game[move]) == King and game[move].color == enemy_color
+        type(board[move]) == King and board[move].color == enemy_color
         for move in perp_m(pos, 1) + diag_m(pos, 1)
     )
 
     # check pincer for pawn
     enemy_pawn = any(
-        type(game[move]) == King and game[move].color == enemy_color
+        type(board[move]) == King and board[move].color == enemy_color
         for move in pincer_m(pos, color.dir)
     )
 
@@ -185,27 +172,31 @@ def kingcheck_safe(game: Game, pos: Position, color: Color) -> bool:
     )
 
 
-def castle_long_valid(game: Game, color: Color, castling_flags: CastlingFlags) -> bool:
+def castle_long_valid(
+    board: Board, color: Color, castling_flags: CastlingFlags
+) -> bool:
     row = 7 if color == Color.WHITE else 0
 
-    pos_pass_long = kingcheck_safe(game, (row, 3), color)
-    clear_lane = not any(game[(row, col)] for col in (1, 2, 3))
+    pos_pass_long = kingcheck_safe(board, (row, 3), color)
+    clear_lane = not any(board[(row, col)] for col in (1, 2, 3))
 
-    king_not_checked = game.checked(color)
+    king_not_checked = board.checked(color)
 
     priviledge = castling_flags[color][0]
 
     return all([pos_pass_long, clear_lane, king_not_checked, priviledge])
 
 
-def castle_short_valid(game: Game, color: Color, castling_flags: CastlingFlags) -> bool:
+def castle_short_valid(
+    board: Board, color: Color, castling_flags: CastlingFlags
+) -> bool:
     row = 7 if color == Color.WHITE else 0
 
-    pos_pass_short = kingcheck_safe(game, (row, 5), color)
+    pos_pass_short = kingcheck_safe(board, (row, 5), color)
 
-    clear_lane = not any(game[(row, col)] for col in (5, 6))
+    clear_lane = not any(board[(row, col)] for col in (5, 6))
 
-    king_not_checked = game.checked(color)
+    king_not_checked = board.checked(color)
 
     priviledge = castling_flags[color][1]
 
@@ -220,41 +211,27 @@ def enpassant_valid(
     return enpassant_target == enemy_pawn
 
 
-def pincer_valid(game: Game, pos: Position, move: Move) -> bool:
+def pincer_valid(board: Board, pos: Position, move: Move) -> bool:
 
-    if not game[move]:
+    if not board[move]:
         return False
-    if game[move].color != game[pos].color:
+    if board[move].color != board[pos].color:
         return True
     return False
 
 
-def front_long_valid(game: Game, pos: Position, move: Move, color: Color) -> bool:
+def front_long_valid(board: Board, pos: Position, move: Move, color: Color) -> bool:
     starting_rank = pos[0] == (6 if color == Color.WHITE else 1)
-    to_is_empty = not game[move]
-    return starting_rank and to_is_empty
+    return starting_rank and not board[move]
 
 
-def front_short_valid(game: Game, move: Move) -> bool:
-    to_piece = game[move]
+def front_short_valid(board: Board, move: Move) -> bool:
+    to_piece = board[move]
 
-    return bool(to_piece)
-
-
-def is_color(game: Game, pos: Position, color: Color) -> bool:
-    piece = game[pos]
-
-    return color == piece.color
+    return not to_piece
 
 
-def to_empty_or_enemy(game: Game, move: Move, color: Color) -> bool:
-
-    to_piece = game[move]
-
-    return not to_piece or to_piece.color != color
-
-
-def no_obstruction(game: Game, pos: Position, move: Move) -> bool:
+def no_obstruction(board: Board, pos: Position, move: Move) -> bool:
 
     pos_x, pos_y = pos
     to_x, to_y = move
@@ -268,71 +245,65 @@ def no_obstruction(game: Game, pos: Position, move: Move) -> bool:
 
     # If both exist, diag move
     if X and Y:
-        obstructions = [1 for xy in zip(X, Y) if xy != pos and game[xy]]
+        return not any(xy != pos and board[xy] for xy in zip(X, Y))
 
     # If x exists, perp col, same column
-    elif X:
-        obstructions = [1 for x in X if (x, pos_y) != pos and game[x, pos_y]]
+    if X:
+        return not any((x, pos_y) != pos and board[x, pos_y] for x in X)
 
     # Else y exists, perp col, same row
-    else:
-        obstructions = [1 for y in Y if (pos_x, y) != pos and game[pos_x, y]]
-
-    return not obstructions
-
-
-def king_safe_at_end(
-    game: Game,
-    pos: Position,
-    move: Move,
-    color: Color,
-    enpassant_target: Position | None = None,
-) -> bool:
-    to, flag = move, move.flag
-
-    end_game = deepcopy(game)
-
-    # simulate move
-    end_game[to] = end_game[pos]
-    end_game[pos] = Empty()
-    if flag == Flag.ENPASSANT and enpassant_target:
-        end_game[enpassant_target] = Empty()
-
-    return not end_game.checked(color)
+    return not any((pos_x, y) != pos and board[pos_x, y] for y in Y)
 
 
 def final_checks(
-    game: Game,
+    board: Board,
     pos: Position,
     move: Move,
     color: Color,
     enpassant_target: Position | None = None,
 ) -> bool:
+    def is_color(board: Board, pos: Position, color: Color) -> bool:
+        piece = board[pos]
+
+        return color == piece.color
+
+    def king_safe_at_end(
+        board: Board,
+        pos: Position,
+        move: Move,
+        color: Color,
+        enpassant_target: Position | None = None,
+    ) -> bool:
+        # return True
+        to, flag = move, move.flag
+
+        end_game = deepcopy(board)
+        # simulate move
+        end_game.single_move(pos, to)
+        if flag == Flag.ENPASSANT and enpassant_target:
+            end_game[enpassant_target] = Empty()
+
+        return not end_game.checked(color)
+
+    def not_color(board: Board, move: Move, color: Color) -> bool:
+        return board[move].color != color
+
     return (
-        is_color(game, pos, color)
-        and to_empty_or_enemy(game, move, color)
-        and no_obstruction(game, pos, move)
-        and king_safe_at_end(game, pos, move, color, enpassant_target)
+        is_color(board, pos, color)
+        and not_color(board, move, color)
+        and no_obstruction(board, pos, move)
+        and king_safe_at_end(board, pos, move, color, enpassant_target)
     )
 
 
 def final_checks_filter(
     moves: list[Move],
-    game: Game,
+    board: Board,
     pos: Position,
     color: Color,
     enpassant_target: Position | None = None,
 ):
-    return [
-        m
-        for m in moves
-        if (
-            is_color(game, pos, color)
-            and to_empty_or_enemy(game, m, color)
-            and no_obstruction(game, pos, m)
-            and king_safe_at_end(game, pos, m, color, enpassant_target)
-        )
-    ]
+    return [m for m in moves if final_checks(board, pos, m, color, enpassant_target)]
 
 
 class Flag(Enum):
@@ -346,10 +317,10 @@ class Flag(Enum):
 
 
 class Move(tuple):
-    def __new__(cls, pos, flag=Flag.NONE):
+    def __new__(cls, pos: Position, flag=Flag.NONE):
         return super().__new__(cls, pos)
 
-    def __init__(self, pos, flag=Flag.NONE):
+    def __init__(self, pos: Position, flag=Flag.NONE):
         self.flag = flag
 
 
@@ -421,7 +392,7 @@ def get_moves_empty(*args, **kwargs) -> list[Move]:
 
 
 def get_moves_pawn(
-    game: Game, pos: Position, color: Color, enpassant_target: Position | None
+    board: Board, pos: Position, color: Color, enpassant_target: Position | None
 ) -> list[Move]:
     """Priority: Empassat, Pincer, Long, Short"""
     dir = color.dir
@@ -432,55 +403,55 @@ def get_moves_pawn(
         if enpassant_valid(pos, move, enpassant_target)
     ]
 
-    pincer = [move for move in pincer_m(pos, dir) if pincer_valid(game, pos, move)]
+    pincer = [move for move in pincer_m(pos, dir) if pincer_valid(board, pos, move)]
 
     front_long = [
         move
         for move in front_long_m(pos, dir)
-        if front_long_valid(game, pos, move, color)
+        if front_long_valid(board, pos, move, color)
     ]
 
     front_short = [
-        move for move in front_short_m(pos, dir) if front_short_valid(game, move)
+        move for move in front_short_m(pos, dir) if front_short_valid(board, move)
     ]
     all_moves = enpassant + pincer + front_long + front_short
-    return final_checks_filter(all_moves, game, pos, color, enpassant_target)
+    return final_checks_filter(all_moves, board, pos, color, enpassant_target)
 
 
-def get_moves_rook(game: Game, pos: Position, color: Color) -> list[Move]:
+def get_moves_rook(board: Board, pos: Position, color: Color) -> list[Move]:
     all_moves = perp_m(pos)
     for move in all_moves:
         move.flag = Flag.LOSE_ROOK_PRIV
-    return final_checks_filter(all_moves, game, pos, color)
+    return final_checks_filter(all_moves, board, pos, color)
 
 
-def get_moves_knight(game: Game, pos: Position, color: Color) -> list[Move]:
+def get_moves_knight(board: Board, pos: Position, color: Color) -> list[Move]:
     all_moves = lshapes_m(pos)
-    return final_checks_filter(all_moves, game, pos, color)
+    return final_checks_filter(all_moves, board, pos, color)
 
 
-def get_moves_bishop(game: Game, pos: Position, color: Color) -> list[Move]:
+def get_moves_bishop(board: Board, pos: Position, color: Color) -> list[Move]:
     all_moves = diag_m(pos)
-    return final_checks_filter(all_moves, game, pos, color)
+    return final_checks_filter(all_moves, board, pos, color)
 
 
-def get_moves_queen(game: Game, pos: Position, color: Color) -> list[Move]:
+def get_moves_queen(board: Board, pos: Position, color: Color) -> list[Move]:
     all_moves = diag_m(pos) + perp_m(pos)
-    return final_checks_filter(all_moves, game, pos, color)
+    return final_checks_filter(all_moves, board, pos, color)
 
 
 def get_moves_king(
-    game: Game, pos: Position, color: Color, castling_flags: CastlingFlags
+    board: Board, pos: Position, color: Color, castling_flags: CastlingFlags
 ) -> list[Move]:
     castle_short = [
         move
         for move in castle_short_m(pos)
-        if castle_short_valid(game, color, castling_flags)
+        if castle_short_valid(board, color, castling_flags)
     ]
     castle_long = [
         move
         for move in castle_long_m(pos)
-        if castle_long_valid(game, color, castling_flags)
+        if castle_long_valid(board, color, castling_flags)
     ]
 
     normal_moves = diag_m(pos, 1) + perp_m(pos, 1)
@@ -489,56 +460,52 @@ def get_moves_king(
         move.flag = Flag.LOSE_KING_PRIV
 
     all_moves = normal_moves + castle_long + castle_short
-    return [move for move in all_moves if final_checks(game, pos, move, color)]
+    return [move for move in all_moves if final_checks(board, pos, move, color)]
 
 
-def empty_board() -> dict[Position, Piece]:
-    return {pos: Empty() for pos in product(range(8), range(8))}
+EMPTY_BOARD: dict[Position, Piece] = {
+    pos: Empty() for pos in product(range(8), range(8))
+}
 
 
-def initial_castling_flags() -> CastlingFlags:
-    return {
-        Color.WHITE: [True, True],
-        Color.BLACK: [True, True],
-    }
+INITIAL_CASTING_FLAGS: CastlingFlags = {
+    Color.WHITE: [True, True],
+    Color.BLACK: [True, True],
+}
 
 
-@dataclass
-class Game:
-    board: dict[Position, Piece] = field(init=False, default_factory=empty_board)
-    color_to_move: Color = field(init=False, default=Color.WHITE)
-    enpassant_target: Position | None = field(init=False, default=None)
-    castling_flags: CastlingFlags = field(
-        init=False,
-        default_factory=initial_castling_flags,
-    )
+class Board(UserDict):
+    def __init__(self):
+        self.data: dict[Position, Piece] = EMPTY_BOARD
+        self.color_to_move: Color = Color.WHITE
+        self.enpassant_target: Position | None = None
+        self.castling_flags: CastlingFlags = INITIAL_CASTING_FLAGS
 
     @classmethod
-    def from_fen(cls, fen_string: str) -> Self:
+    def from_fen(cls, fen_string: str = Setup.START) -> Self:
         board_configuration = fen_string.replace("/", "").split(" ")[0]
 
         for digit in "12345678":
             board_configuration = board_configuration.replace(digit, " " * int(digit))
 
-        game = Game()
+        board = cls()
 
         for i, p in enumerate(board_configuration):
             if p.isspace():
                 continue
             color, PieceType = FEN_MAP[p]
             row, col = divmod(i, 8)
-            game.board[row, col] = PieceType(color)
-        return game
+            board[row, col] = PieceType(color)
+        return board
 
     def checked(self, color: Color) -> bool:
-
         king_pos = self.king_pos(color)
         return not kingcheck_safe(self, king_pos, color)
 
     def king_pos(self, color: Color) -> Position:
         return next(
             pos
-            for pos, piece in self.board.items()
+            for pos, piece in self.items()
             if piece.color == color and type(piece) == King
         )
 
@@ -558,7 +525,7 @@ class Game:
         color = self.color_to_move
 
         all_moves = {}
-        for pos, piece in self.board.items():
+        for pos, piece in self.items():
             if piece.color != color:
                 continue
             if moves := piece.get_moves(
@@ -570,11 +537,9 @@ class Game:
                 all_moves[pos] = moves
         return all_moves
 
-    def __getitem__(self, pos: Position) -> Piece:
-        return self.board[pos]
-
-    def __setitem__(self, pos: Position, new_piece: Piece) -> None:
-        self.board[pos] = new_piece
-
     def __delitem__(self, pos: Position) -> None:
-        self.board[pos] = Empty()
+        self.data[pos] = Empty()
+
+    def single_move(self, frm: Position, to: Position) -> None:
+        self.data[to] = self.data[frm]
+        self.data[frm] = Empty()

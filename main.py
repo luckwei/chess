@@ -4,7 +4,7 @@ from chess import Root
 
 
 def main() -> None:
-    Root().mainloop()
+    Root().display.mainloop()
 
 
 if __name__ == "__main__":
