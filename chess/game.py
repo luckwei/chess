@@ -303,50 +303,41 @@ def final_checks(
     color: Color,
     enpassant_target: Position | None = None,
 ) -> bool:
-    def is_color(board: Board, pos: Position, color: Color) -> bool:
-        piece = board[pos]
-
-        return color == piece.color
-
-    def king_safe_at_end(
-        board: Board,
-        pos: Position,
-        move: Move,
-        color: Color,
-        enpassant_target: Position | None = None,
-    ) -> bool:
-        # return True
-        to, flag = move, move.flag
-
-        end_game = deepcopy(board)
-        # simulate move
-        end_game.simple_move(pos, to)
-        if flag == Flag.ENPASSANT and enpassant_target:
-            end_game[enpassant_target] = Empty()
-
-        return not end_game.checked(color)
-
-    def not_color(board: Board, move: Move, color: Color) -> bool:
-        return board[move].color != color
-
-    return (
-        is_color(board, pos, color)
-        and not_color(board, move, color)
-        and no_obstruction(board, pos, move)
-        and king_safe_at_end(board, pos, move, color, enpassant_target)
-    )
+    
+    # From pos is color
+    if board[pos].color != color:
+        return False
+    
+    # To pos is not color
+    if board[move].color == color:
+        return False
+    
+    # Move should not have obstruction
+    if not no_obstruction(board, pos, move):
+        return False
+    
+    to, flag = move, move.flag
+    end_game = deepcopy(board)
+    # simulate move
+    end_game.simple_move(pos, to)
+    if flag == Flag.ENPASSANT and enpassant_target:
+        end_game[enpassant_target] = Empty()
+        
+    # King should not be checked in the end
+    #FIXME?
+    return not end_game.checked(color)
 
 
-class Move(tuple):
-    def __new__(cls, pos: Position, flag=Flag.NONE):
+class Move(Position):
+    def __new__(cls, pos: Position, flag=Flag.NONE) -> Self:
         return super().__new__(cls, pos)
 
     def __init__(self, pos: Position, flag=Flag.NONE):
         self.flag = flag
 
 
-def in_bounds(p: Position):
-    return max(p) <= 7 and min(p) >= 0
+def in_bounds(pos: Position) -> bool:
+    return max(pos) <= 7 and min(pos) >= 0
 
 
 def diag_m(pos: Position, n=7) -> filter[Move]:
