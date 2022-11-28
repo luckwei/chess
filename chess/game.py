@@ -21,16 +21,14 @@ class Color(StrEnum):
 
     @property
     def dir(self) -> int:
-        dir_dict = {Color.WHITE: -1, Color.BLACK: 1}
-        return dir_dict.get(self, 0)
+        return {Color.WHITE: -1, Color.BLACK: 1}.get(self, 0)
 
     @property
     def other(self) -> Self:
-        other_dict = {
+        return {
             Color.WHITE: Color.BLACK,
             Color.BLACK: Color.WHITE,
-        }
-        return other_dict.get(self, Color.NONE)
+        }.get(self, Color.NONE)
 
 
 # Chess Pieces and it's subclass
@@ -47,6 +45,7 @@ class Piece(ABC):
         self,
         board: Board,
         pos: Position,
+        /,
         enpassant_target: Position | None,
         castling_flags: CastlingFlags,
     ) -> list[Move]:
@@ -55,7 +54,7 @@ class Piece(ABC):
 
 @dataclass
 class Empty(Piece):
-    color: Color = field(init=False, default=Color.NONE)
+    color: Color = Color.NONE
 
     def __bool__(self):
         return False
@@ -77,23 +76,30 @@ class Pawn(Piece):
         def get_moves_pawn(
             board: Board, pos: Position, color: Color, enpassant_target: Position | None
         ) -> filter[Move]:
-            """Priority: Empassat, Pincer, Long, Short"""
             dir = color.dir
 
             enpassant = filter(
-                lambda m: enpassant_valid(pos, m, enpassant_target),
-                enpassant_m(pos, dir),
+                lambda m: in_bounds(m) and enpassant_target == (pos[0], m[1]),
+                [
+                    Move((pos[0] + dir, pos[1] + 1), Flag.ENPASSANT),
+                    Move((pos[0] + dir, pos[1] - 1), Flag.ENPASSANT),
+                ],
             )
 
-            pincer = filter(lambda m: pincer_valid(board, pos, m), pincer_m(pos, dir))
+            pincer = filter(
+                lambda m: in_bounds(m) and board[m].color == color.other,
+                [Move((pos[0] + dir, pos[1] + 1)), Move((pos[0] + dir, pos[1] - 1))],
+            )
 
             front_long = filter(
-                lambda m: front_long_valid(board, pos, m, color), front_long_m(pos, dir)
+                lambda m: pos[0] == (6 if color == Color.WHITE else 1) and not board[m],
+                (Move((pos[0] + 2 * dir, pos[1]), Flag.ENPASSANT_TRGT),),
             )
 
             front_short = filter(
-                lambda m: front_short_valid(board, m), front_short_m(pos, dir)
+                lambda m: not board[m], (Move((pos[0] + dir, pos[1])),)
             )
+
             all_moves = (*enpassant, *pincer, *front_long, *front_short)
 
             return filter(
@@ -146,16 +152,34 @@ class King(Piece):
     ) -> filter[Move]:
         color = self.color
         all_moves = []
-        if castle_short_valid(board, color, castling_flags):
-            all_moves.append(castle_short_m(pos))
 
-        if castle_long_valid(board, color, castling_flags):
-            all_moves.append(castle_long_m(pos))
+        king_not_checked = board.checked(color)
+        row = 7 if color == Color.WHITE else 0
 
-        all_moves.extend((*diag_m(pos, 1), *perp_m(pos, 1)))
+        castle_short_valid = (
+            king_not_checked
+            and kingcheck_safe(board, (row, 5), color)
+            and not any(board[(row, col)] for col in (5, 6))
+            and castling_flags[color, Flag.CASTLE_SHORT],
+        )
 
-        for move in all_moves:
+        castle_long_valid = (
+            king_not_checked
+            and kingcheck_safe(board, (row, 3), color)
+            and not any(board[(row, col)] for col in (1, 2, 3))
+            and castling_flags[color, Flag.CASTLE_LONG]
+        )
+
+        if castle_short_valid:
+            all_moves.append(Move((pos[0], pos[1] + 2), Flag.CASTLE_SHORT))
+
+        if castle_long_valid:
+            all_moves.append(Move((pos[0], pos[1] - 2), Flag.CASTLE_LONG))
+
+        normal_moves = (*diag_m(pos, 1), *perp_m(pos, 1))
+        for move in normal_moves:
             move.flag = Flag.LOSE_KING_PRIV
+        all_moves.extend(normal_moves)
 
         return filter(lambda m: final_checks(board, pos, m, color), all_moves)
 
@@ -177,7 +201,31 @@ FEN_MAP: dict[str, tuple[Color, Type[Piece]]] = {
 }
 
 
-CastlingFlags = dict[Color, list[bool]]
+class Flag(Enum):
+    NONE = auto()
+    ENPASSANT_TRGT = auto()
+    ENPASSANT = auto()
+    CASTLE_LONG = auto()
+    CASTLE_SHORT = auto()
+    LOSE_KING_PRIV = auto()
+    LOSE_ROOK_PRIV = auto()
+
+
+class CastlingFlags(UserDict[tuple[Color, Flag], bool]):
+    def __init__(self) -> None:
+        self.data = {
+            (Color.WHITE, Flag.CASTLE_SHORT): True,
+            (Color.WHITE, Flag.CASTLE_LONG): True,
+            (Color.BLACK, Flag.CASTLE_SHORT): True,
+            (Color.BLACK, Flag.CASTLE_LONG): True,
+        }
+
+    def falsify(self, color: Color, flag: Flag = Flag.NONE) -> None:
+        if flag:
+            self.data[color, flag] = False
+            return
+        self.data[color, Flag.CASTLE_LONG] = False
+        self.data[color, Flag.CASTLE_SHORT] = False
 
 
 def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
@@ -217,67 +265,11 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     # check pincer for pawn
     return not any(
         type(board[move]) == King and board[move].color == enemy_color
-        for move in pincer_m(pos, color.dir)
+        for move in [
+            Move((pos[0] + color.dir, pos[1] + 1)),
+            Move((pos[0] + color.dir, pos[1] - 1)),
+        ]
     )
-
-
-def castle_long_valid(
-    board: Board, color: Color, castling_flags: CastlingFlags
-) -> bool:
-    row = 7 if color == Color.WHITE else 0
-
-    pos_pass_long = kingcheck_safe(board, (row, 3), color)
-    clear_lane = not any(board[(row, col)] for col in (1, 2, 3))
-
-    king_not_checked = board.checked(color)
-
-    priviledge = castling_flags[color][0]
-
-    return all([pos_pass_long, clear_lane, king_not_checked, priviledge])
-
-
-def castle_short_valid(
-    board: Board, color: Color, castling_flags: CastlingFlags
-) -> bool:
-    row = 7 if color == Color.WHITE else 0
-
-    pos_pass_short = kingcheck_safe(board, (row, 5), color)
-
-    clear_lane = not any(board[(row, col)] for col in (5, 6))
-
-    king_not_checked = board.checked(color)
-
-    priviledge = castling_flags[color][1]
-
-    return all([pos_pass_short, clear_lane, king_not_checked, priviledge])
-
-
-def enpassant_valid(
-    pos: Position, move: Move, enpassant_target: Position | None
-) -> bool:
-
-    enemy_pawn = (pos[0], move[1])
-    return enpassant_target == enemy_pawn
-
-
-def pincer_valid(board: Board, pos: Position, move: Move) -> bool:
-
-    if not board[move]:
-        return False
-    if board[move].color != board[pos].color:
-        return True
-    return False
-
-
-def front_long_valid(board: Board, pos: Position, move: Move, color: Color) -> bool:
-    starting_rank = pos[0] == (6 if color == Color.WHITE else 1)
-    return starting_rank and not board[move]
-
-
-def front_short_valid(board: Board, move: Move) -> bool:
-    to_piece = board[move]
-
-    return not to_piece
 
 
 def no_obstruction(board: Board, pos: Position, move: Move) -> bool:
@@ -328,7 +320,7 @@ def final_checks(
 
         end_game = deepcopy(board)
         # simulate move
-        end_game.single_move(pos, to)
+        end_game.simple_move(pos, to)
         if flag == Flag.ENPASSANT and enpassant_target:
             end_game[enpassant_target] = Empty()
 
@@ -345,16 +337,6 @@ def final_checks(
     )
 
 
-class Flag(Enum):
-    NONE = auto()
-    ENPASSANT_TRGT = auto()
-    ENPASSANT = auto()
-    CASTLE_LONG = auto()
-    CASTLE_SHORT = auto()
-    LOSE_KING_PRIV = auto()
-    LOSE_ROOK_PRIV = auto()
-
-
 class Move(tuple):
     def __new__(cls, pos: Position, flag=Flag.NONE):
         return super().__new__(cls, pos)
@@ -363,7 +345,7 @@ class Move(tuple):
         self.flag = flag
 
 
-def in_bounds(p):
+def in_bounds(p: Position):
     return max(p) <= 7 and min(p) >= 0
 
 
@@ -398,76 +380,32 @@ def lshapes_m(pos: Position) -> filter[Move]:
     return filter(in_bounds, moves)
 
 
-def castle_short_m(pos: Position) -> Move:
-    return Move((pos[0], pos[1] + 2), Flag.CASTLE_SHORT)
-
-
-def castle_long_m(pos: Position) -> Move:
-    return Move((pos[0], pos[1] - 2), Flag.CASTLE_LONG)
-
-
-def pincer_m(pos: Position, dir: int) -> filter[Move]:
-    L = Move((pos[0] + dir, pos[1] + 1))
-    R = Move((pos[0] + dir, pos[1] - 1))
-    return filter(in_bounds, (L, R))
-
-
-def enpassant_m(pos: Position, dir: int) -> filter[Move]:
-    L = Move((pos[0] + dir, pos[1] + 1), Flag.ENPASSANT)
-    R = Move((pos[0] + dir, pos[1] - 1), Flag.ENPASSANT)
-    return filter(in_bounds, (L, R))
-
-
-def front_short_m(pos: Position, dir: int) -> Move:
-    return Move((pos[0] + dir, pos[1]))
-
-
-def front_long_m(pos: Position, dir: int) -> Move:
-    return Move((pos[0] + 2 * dir, pos[1]), Flag.ENPASSANT_TRGT)
-
-
-def get_moves_empty(*args, **kwargs) -> tuple:
-    return tuple()
-
-
-EMPTY_BOARD: dict[Position, Piece] = {
-    pos: Empty() for pos in product(range(8), range(8))
-}
-
-
-INITIAL_CASTING_FLAGS: CastlingFlags = {
-    Color.WHITE: [True, True],
-    Color.BLACK: [True, True],
-}
-
-
-class Board(UserDict):
-    def __init__(self):
-        self.data: dict[Position, Piece] = EMPTY_BOARD
-        self.color_to_move: Color = Color.WHITE
+class Board(UserDict[Position, Piece]):
+    def __init__(self, fen_string=Setup.START):
+        self.data: dict[Position, Piece] = self.process_fen(fen_string)
+        self.color_move: Color = Color.WHITE
         self.enpassant_target: Position | None = None
-        self.castling_flags: CastlingFlags = INITIAL_CASTING_FLAGS
+        self.castling_flags: CastlingFlags = CastlingFlags()
 
-    @classmethod
-    def from_fen(cls, fen_string: str = Setup.START) -> Self:
+        self.all_moves: dict[Position, list[Move]]
+        self.recompute_all_moves()
+
+    @staticmethod
+    def process_fen(fen_string: str = Setup.START) -> dict[Position, Piece]:
         board_configuration = fen_string.replace("/", "").split(" ")[0]
 
         for digit in "12345678":
             board_configuration = board_configuration.replace(digit, " " * int(digit))
 
-        board = cls()
-
+        board = {}
         for i, p in enumerate(board_configuration):
-            if p.isspace():
-                continue
             color, PieceType = FEN_MAP[p]
             row, col = divmod(i, 8)
             board[row, col] = PieceType(color)
         return board
 
     def checked(self, color: Color) -> bool:
-        king_pos = self.king_pos(color)
-        return not kingcheck_safe(self, king_pos, color)
+        return not kingcheck_safe(self, self.king_pos(color), color)
 
     def king_pos(self, color: Color) -> Position:
         return next(
@@ -476,37 +414,83 @@ class Board(UserDict):
             if piece.color == color and type(piece) == King
         )
 
-    def toggle_color_turn(self) -> None:
-        self.color_to_move = self.color_to_move.other
+    def toggle_color_to_move(self) -> None:
+        self.color_move = self.color_move.other
 
-    def checkmated(self) -> bool:
-        color = self.color_to_move
-        return not self.all_moves and self.checked(color)
+    def checkmated(self, color: Color | None = None) -> bool:
+        if color is None:
+            color = self.color_move
+        return not self.recompute_all_moves(color) and self.checked(color)
 
-    def stalemated(self) -> bool:
-        color = self.color_to_move
-        return not self.all_moves and not self.checked(color)
+    def stalemated(self, color: Color | None = None) -> bool:
+        if color is None:
+            color = self.color_move
+        return not self.recompute_all_moves(color) and not self.checked(color)
 
-    @property
-    def all_moves(self) -> dict[Position, list[Move]]:
-        color = self.color_to_move
-
+    def recompute_all_moves(self, color: Color | None = None) -> None:
+        if color is None:
+            color = self.color_move
+        et, cf = self.enpassant_target, self.castling_flags
         all_moves = {}
         for pos, piece in self.items():
-            if piece.color != color:
-                continue
-            if moves := piece.get_moves(
-                self,
-                pos,
-                enpassant_target=self.enpassant_target,
-                castling_flags=self.castling_flags,
+            if piece.color == color and (
+                moves := piece.get_moves(
+                    self,
+                    pos,
+                    enpassant_target=et,
+                    castling_flags=cf,
+                )
             ):
                 all_moves[pos] = moves
-        return all_moves
+        self.all_moves = all_moves
 
     def __delitem__(self, pos: Position) -> None:
-        self.data[pos] = Empty()
+        self[pos] = Empty()
 
-    def single_move(self, frm: Position, to: Position) -> None:
-        self.data[to] = self.data[frm]
-        self.data[frm] = Empty()
+    def simple_move(self, frm: Position, to: Position) -> None:
+        self[to] = self[frm]
+        del self[frm]
+
+    def execute_move(self, frm: Position, to: Position, flag: Flag = Flag.NONE) -> None:
+        # if self.checked:
+        #     print("CHECKED!")
+
+        # if self.checkmated:
+        #     print("CHECKMATE!")
+        #     showinfo(
+        #         "Game ended!",
+        #         f"{self.color_to_move.other} WINS by CHECKMATE!\nPress q to start new game..",
+        #     )
+
+        # if self.stalemated:
+        #     print("STALEMATE!")
+        #     showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
+        color = self.color_move
+        castling_flags = self.castling_flags
+        back_rank = 7 if color == Color.WHITE else 0
+
+        if flag == Flag.CASTLE_LONG:
+            self.simple_move((back_rank, 0), (back_rank, 3))
+            castling_flags.falsify(color)
+
+        if flag == Flag.CASTLE_SHORT:
+            self.simple_move((back_rank, 7), (back_rank, 5))
+            castling_flags.falsify(color)
+
+        if flag == Flag.LOSE_KING_PRIV:
+            castling_flags.falsify(color)
+
+        if flag == Flag.LOSE_ROOK_PRIV:
+            if frm == (back_rank, 0):
+                castling_flags.falsify(color, Flag.CASTLE_LONG)
+            else:
+                castling_flags.falsify(color, Flag.CASTLE_SHORT)
+
+        if flag == Flag.ENPASSANT and self.enpassant_target:
+            del self[self.enpassant_target]
+
+        self.enpassant_target = to if flag == Flag.ENPASSANT_TRGT else None
+
+        self.simple_move(frm, to)
+
+        self.toggle_color_to_move()
