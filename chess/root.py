@@ -13,7 +13,10 @@ from .game import FEN_MAP, Board, Empty, Piece
 from .setup import Setup
 from .types import Position
 
+
 # from playsound import playsound
+def light_tile(pos: Position) -> bool:
+    return sum(pos) % 2 == 0
 
 
 class State(Enum):
@@ -26,6 +29,8 @@ class State(Enum):
 class Display(Tk):
     def __init__(self) -> None:
         super().__init__()
+        self.btns: dict[Position, Widget] = {}
+        self.setup_buttons()
         self.__IMG_DICT = {
             (type, color): SvgImage(
                 file=f"res/{type.__name__.lower()}_{color}.svg", scaletowidth=SIZE.PIECE
@@ -33,26 +38,35 @@ class Display(Tk):
             for color, type in FEN_MAP.values()
         }
 
-    def btns(self):
-        print(self.grid_slaves())
-        return self.grid_slaves()
-
-    def btn(self, pos: Position) -> Widget:
-        return self.grid_slaves(*pos)[0]
+    def setup_buttons(self):
+        for pos in product(range(8), range(8)):
+            button = Button(
+                self,
+                activebackground=THEME.ACTIVE_BG,
+                bd=0,
+                height=SIZE.TILE,
+                width=SIZE.TILE,
+            )
+            self.btns[pos] = button
+            button.grid(row=pos[0], column=pos[1])
+            self.refresh_bg(pos)
 
     def refresh_fg(self, pos: Position, piece: Piece = Empty()) -> None:
-        self.btn(pos)["image"] = self.__IMG_DICT[type(piece), piece.color]
+
+        self.btns[pos]["image"] = self.__IMG_DICT[type(piece), piece.color]
 
     def refresh_bg(self, pos: Position, state: State = State.DEFAULT) -> None:
         STATE_BG_DICT = {
             State.CAPTURABLE: THEME.VALID_CAPTURE,
-            State.MOVABLE: THEME.VALID_HIGHLIGHT_DARK
-            if sum(pos) % 2
-            else THEME.VALID_HIGHLIGHT_LIGHT,
+            State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT
+            if light_tile(pos)
+            else THEME.VALID_HIGHLIGHT_DARK,
             State.SELECTED: THEME.ACTIVE_BG,
-            State.DEFAULT: THEME.LIGHT_TILES if sum(pos) % 2 == 0 else THEME.DARK_TILES,
+            State.DEFAULT: THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES,
         }
-        self.btn(pos)["bg"] = STATE_BG_DICT.get(state, THEME.LIGHT_TILES)
+        self.btns[pos]["bg"] = STATE_BG_DICT.get(
+            state, THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES
+        )
 
 
 class Root(Display):
@@ -62,21 +76,25 @@ class Root(Display):
         self.iconbitmap("res/chess.ico")
 
         self.board = Board()
+        self.refresh_pieces()
         self.selected_pos: Position | None = None
-        self.setup_buttons()
-        self.setup_board()
+
+        self.bind_buttons()
 
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
         # self.bind("<q>", lambda e: self.reset())
-
-    def setup_board(self) -> None:
+    
+    def refresh_pieces(self) -> None:
         for pos, piece in self.board.items():
-            # SET FOREGROUND BACKGROUND
             self.refresh_fg(pos, piece)
-            self.refresh_bg(pos)
 
-    def setup_buttons(self):
+    def bind_buttons(self):
+        def contiguous_reset_bg(pos: Position):
+            self.refresh_bg(pos)
+            for move in self.board.all_moves[pos]:
+                self.refresh_bg(move)
+
         def __bind_factory(pos: Position):
             def on_click(e: Event) -> None:
                 selected_pos = self.selected_pos
@@ -84,10 +102,7 @@ class Root(Display):
 
                 # There was a selected move previously
                 if selected_pos:
-                    self.refresh_bg(selected_pos)
-
-                    for move in all_moves[selected_pos]:
-                        self.refresh_bg(move)
+                    contiguous_reset_bg(selected_pos)
                     # Check all moves
                     for move in all_moves[selected_pos]:
                         to, flag = move, move.flag
@@ -98,19 +113,21 @@ class Root(Display):
 
                         if pos == to:
                             self.board.execute_move(selected_pos, to, flag)
+                            self.refresh_pieces()
                             self.selected_pos = None
                             return
                 # No selected move previously, also an unmovable tile
                 if pos not in all_moves:
                     return
 
-                self.refresh_bg(pos, State.SELECTED)
+                # Tile is valid, so select it
                 for move in all_moves[pos]:
                     self.refresh_bg(
                         move,
                         State.CAPTURABLE if self.board[move] else State.MOVABLE,
                     )
 
+                self.refresh_bg(pos, State.SELECTED)
                 self.selected_pos = pos
 
             def on_enter(e: Event) -> None:
@@ -133,25 +150,12 @@ class Root(Display):
                 if selected_pos or pos not in all_moves:
                     return
 
-                self.refresh_bg(pos)
-
-                for move in all_moves[pos]:
-                    self.refresh_bg(move)
+                contiguous_reset_bg(pos)
 
             return on_click, on_enter, on_exit
 
-        for pos in product(range(8), range(8)):
-            button = Button(
-                self,
-                activebackground=THEME.ACTIVE_BG,
-                bd=0,
-                height=SIZE.TILE,
-                width=SIZE.TILE,
-            )
+        for pos, btn in self.btns.items():
             on_click, on_enter, on_exit = __bind_factory(pos)
-            button.bind("<ButtonRelease-1>", on_click)
-            button.bind("<Enter>", on_enter)
-            button.bind("<Leave>", on_exit)
-
-            button.grid(row=pos[0], column=pos[1])
-            self.refresh_bg(pos)
+            btn.bind("<ButtonRelease-1>", on_click)
+            btn.bind("<Enter>", on_enter)
+            btn.bind("<Leave>", on_exit)
