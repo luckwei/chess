@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import UserDict
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from enum import Enum, StrEnum, auto
 from itertools import product
 from tkinter.messagebox import showinfo
@@ -45,7 +45,11 @@ class Piece(ABC):
     @property
     def type(cls) -> Type[Piece]:
         return cls
-    
+
+    @property
+    def type_color(self) -> PieceTypeColor:
+        return self.type, self.color
+
     @property
     def dir(self) -> int:
         return self.color.dir
@@ -60,6 +64,9 @@ class Piece(ABC):
         castling_flags: CastlingFlags,
     ) -> list[Move]:
         ...
+
+
+PieceTypeColor = tuple[Type[Piece], Color]
 
 
 @dataclass
@@ -161,26 +168,26 @@ class King(Piece):
         color = self.color
         all_moves = []
 
-        king_not_checked = not board.checked(color)
+        king_not_checked = not board.checked
         back_rank = color.back_rank
 
-        # Short castle
+        # King-side castle
         if (
-            castling_flags[color, Flag.CASTLE_SHORT]
+            castling_flags[color, Flag.CASTLE_KSIDE]
             and king_not_checked
             and kingcheck_safe(board, (back_rank, 5), color)
             and not any(board[(back_rank, col)] for col in [5, 6])
         ):
-            all_moves.append(Move((pos[0], pos[1] + 2), Flag.CASTLE_SHORT))
+            all_moves.append(Move((pos[0], pos[1] + 2), Flag.CASTLE_KSIDE))
 
-        # Long castle
+        # Queen-side castle
         if (
-            castling_flags[color, Flag.CASTLE_LONG]
+            castling_flags[color, Flag.CASTLE_QSIDE]
             and king_not_checked
             and kingcheck_safe(board, (back_rank, 3), color)
             and not any(board[(back_rank, col)] for col in [1, 2, 3])
         ):
-            all_moves.append(Move((pos[0], pos[1] - 2), Flag.CASTLE_LONG))
+            all_moves.append(Move((pos[0], pos[1] - 2), Flag.CASTLE_QSIDE))
 
         # Normal moves
         all_moves.extend(
@@ -191,20 +198,20 @@ class King(Piece):
         return [m for m in all_moves if final_checks(m, pos, board, color)]
 
 
-FEN_MAP: dict[str, tuple[Color, Type[Piece]]] = {
-    "p": (Color.BLACK, Pawn),
-    "n": (Color.BLACK, Knight),
-    "b": (Color.BLACK, Bishop),
-    "r": (Color.BLACK, Rook),
-    "q": (Color.BLACK, Queen),
-    "k": (Color.BLACK, King),
-    "P": (Color.WHITE, Pawn),
-    "N": (Color.WHITE, Knight),
-    "B": (Color.WHITE, Bishop),
-    "R": (Color.WHITE, Rook),
-    "Q": (Color.WHITE, Queen),
-    "K": (Color.WHITE, King),
-    " ": (Color.NONE, Empty),
+FEN_MAP: dict[str, PieceTypeColor] = {
+    "p": (Pawn, Color.BLACK),
+    "n": (Knight, Color.BLACK),
+    "b": (Bishop, Color.BLACK),
+    "r": (Rook, Color.BLACK),
+    "q": (Queen, Color.BLACK),
+    "k": (King, Color.BLACK),
+    "P": (Pawn, Color.WHITE),
+    "N": (Knight, Color.WHITE),
+    "B": (Bishop, Color.WHITE),
+    "R": (Rook, Color.WHITE),
+    "Q": (Queen, Color.WHITE),
+    "K": (King, Color.WHITE),
+    " ": (Empty, Color.NONE),
 }
 
 
@@ -212,27 +219,32 @@ class Flag(Enum):
     NONE = auto()
     ENPASSANT_TRGT = auto()
     ENPASSANT = auto()
-    CASTLE_LONG = auto()
-    CASTLE_SHORT = auto()
+    CASTLE_QSIDE = auto()
+    CASTLE_KSIDE = auto()
     LOSE_KING_PRIV = auto()
     LOSE_ROOK_PRIV = auto()
 
 
 class CastlingFlags(UserDict[tuple[Color, Flag], bool]):
-    def __init__(self) -> None:
+    FEN_CASTLING_DICT = {
+        (Color.WHITE, Flag.CASTLE_KSIDE): "K",
+        (Color.WHITE, Flag.CASTLE_QSIDE): "Q",
+        (Color.BLACK, Flag.CASTLE_KSIDE): "k",
+        (Color.BLACK, Flag.CASTLE_QSIDE): "q",
+    }
+
+    def __init__(self, fen_substring: str = "KQkq") -> None:
         self.data = {
-            (Color.WHITE, Flag.CASTLE_SHORT): True,
-            (Color.WHITE, Flag.CASTLE_LONG): True,
-            (Color.BLACK, Flag.CASTLE_SHORT): True,
-            (Color.BLACK, Flag.CASTLE_LONG): True,
+            color_side: i in fen_substring
+            for color_side, i in self.FEN_CASTLING_DICT.items()
         }
 
     def falsify(self, color: Color, flag: Flag = Flag.NONE) -> None:
         if flag:
             self[color, flag] = False
             return
-        self[color, Flag.CASTLE_LONG] = False
-        self[color, Flag.CASTLE_SHORT] = False
+        self[color, Flag.CASTLE_QSIDE] = False
+        self[color, Flag.CASTLE_KSIDE] = False
 
 
 def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
@@ -329,9 +341,7 @@ def final_checks(
     if flag == Flag.ENPASSANT and enpassant_target:
         end_game[enpassant_target] = Empty()
 
-    # King should not be checked in the end
-    # FIXME?
-    return not end_game.checked(color)
+    return not end_game.checked
 
 
 class Move(Position):
@@ -370,36 +380,55 @@ def perp_moves(pos: Position, n=7) -> filter[Move]:
 
 def l_moves(pos: Position) -> filter[Move]:
     moves = []
-    for quadrant in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
-        for magnitude in [(1, 2), (2, 1)]:
-            x, y = np.multiply(quadrant, magnitude)
-            moves.append(Move((pos[0] + x, pos[1] + y)))
+    quadrant = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+    magnitude = [(1, 2), (2, 1)]
+    for q, m in product(quadrant, magnitude):
+        x, y = np.multiply(q, m)
+        moves.append(Move((pos[0] + x, pos[1] + y)))
     return filter(in_bounds, moves)
 
 
+@dataclass
 class Board(UserDict[Position, Piece]):
-    def __init__(self, fen_string=Setup.START):
-        self.data: dict[Position, Piece] = self.process_fen(fen_string)
-        self.color_move: Color = Color.WHITE
-        self.enpassant_target: Position | None = None
-        self.castling_flags: CastlingFlags = CastlingFlags()
+    fen_string: InitVar[str | None] = Setup.START
 
-        self.all_moves: dict[Position, list[Move]]
-        self.recompute_all_moves()
+    color_move: Color = field(init=False)
+    castling_flags: CastlingFlags = field(init=False)
+    enpassant_target: Position | None = field(init=False)
+    all_moves: dict[Position, list[Move]] = field(init=False)
 
-    @staticmethod
-    def process_fen(fen_string: str = Setup.START) -> dict[Position, Piece]:
-        board_configuration = fen_string.replace("/", "").split(" ")[0]
+    def __post_init__(self, fen_string):
+        self.set_from_fen(fen_string)
+
+    def set_from_fen(self, fen_string: str = Setup.START) -> None:
+        (
+            board_configuration,
+            color_move,
+            castling_flags,
+            enpassant_trgt,
+            *_,
+        ) = fen_string.replace("/", "").split(" ")
+
+        self.color_move = Color.WHITE if color_move == "w" else Color.BLACK
+
+        self.castling_flags = CastlingFlags(castling_flags)
+
+        if enpassant_trgt == "-":
+            self.enpassant_target = None
+        else:
+            col, row = enpassant_trgt
+            self.enpassant_target = 8 - int(row), "abcdefgh".index(col)
 
         for digit in "12345678":
             board_configuration = board_configuration.replace(digit, " " * int(digit))
 
         board = {}
         for i, p in enumerate(board_configuration):
-            color, PieceType = FEN_MAP[p]
+            PieceType, color = FEN_MAP[p]
             row, col = divmod(i, 8)
             board[row, col] = PieceType(color)
-        return board
+        self.data = board
+        self.recompute_all_moves()
 
     def king_pos(self, color: Color) -> Position:
         return next(
@@ -411,16 +440,17 @@ class Board(UserDict[Position, Piece]):
     def toggle_color_move(self) -> None:
         self.color_move = self.color_move.other
 
-    def checked(self, color: Color | None = None) -> bool:
-        if color is None:
-            color = self.color_move
-        return not kingcheck_safe(self, self.king_pos(color), color)
+    @property
+    def checked(self) -> bool:
+        return not kingcheck_safe(self, self.king_pos(self.color_move), self.color_move)
 
+    @property
     def checkmated(self) -> bool:
-        return not self.all_moves and self.checked()
+        return not self.all_moves and self.checked
 
+    @property
     def stalemated(self, color: Color | None = None) -> bool:
-        return not self.all_moves and not self.checked()
+        return not self.all_moves and not self.checked
 
     def recompute_all_moves(self, color: Color | None = None) -> None:
         if color is None:
@@ -452,11 +482,11 @@ class Board(UserDict[Position, Piece]):
         castling_flags = self.castling_flags
         back_rank = color.back_rank
 
-        if flag == Flag.CASTLE_LONG:
+        if flag == Flag.CASTLE_QSIDE:
             self.simple_move((back_rank, 0), (back_rank, 3))
             castling_flags.falsify(color)
 
-        if flag == Flag.CASTLE_SHORT:
+        if flag == Flag.CASTLE_KSIDE:
             self.simple_move((back_rank, 7), (back_rank, 5))
             castling_flags.falsify(color)
 
@@ -465,9 +495,9 @@ class Board(UserDict[Position, Piece]):
 
         if flag == Flag.LOSE_ROOK_PRIV:
             if pos == (back_rank, 0):
-                castling_flags.falsify(color, Flag.CASTLE_LONG)
+                castling_flags.falsify(color, Flag.CASTLE_QSIDE)
             else:
-                castling_flags.falsify(color, Flag.CASTLE_SHORT)
+                castling_flags.falsify(color, Flag.CASTLE_KSIDE)
 
         if flag == Flag.ENPASSANT and self.enpassant_target:
             del self[self.enpassant_target]

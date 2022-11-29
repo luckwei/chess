@@ -9,7 +9,7 @@ from typing import Type
 from tksvg import SvgImage
 
 from .constants import SIZE, THEME
-from .game import FEN_MAP, Board, Color, Empty, Piece
+from .game import FEN_MAP, Board, Color, Empty, Move, PieceTypeColor
 from .types import Position
 
 
@@ -23,9 +23,6 @@ class State(Enum):
     CAPTURABLE = auto()
     MOVABLE = auto()
     SELECTED = auto()
-
-
-PieceTypeColor = tuple[Type[Piece], Color]
 
 
 class CachedBtn(Button):
@@ -56,13 +53,14 @@ class CachedBtn(Button):
         return self._piece_type_color
 
     @piece_type_color.setter
-    def piece_type_color(self, type_color: PieceTypeColor):
-        self._piece_type_color = type_color
-        self["image"] = self.PIECE_IMGS[type_color]
+    def piece_type_color(self, new_type_color: PieceTypeColor):
+        self._piece_type_color = new_type_color
+        self["image"] = self.PIECE_IMGS[new_type_color]
 
     @piece_type_color.deleter
     def piece_type_color(self):
-        self.piece_type_color = Empty, Color.NONE
+        if self.piece_type_color != (Empty, Color.NONE):
+            self.piece_type_color = Empty, Color.NONE
 
     @property
     def state(self) -> State:
@@ -75,7 +73,8 @@ class CachedBtn(Button):
 
     @state.deleter
     def state(self):
-        self.state = State.DEFAULT
+        if self.state != State.DEFAULT:
+            self.state = State.DEFAULT
 
 
 class Display(Tk):
@@ -83,25 +82,18 @@ class Display(Tk):
         super().__init__()
         self.PIECE_IMGS: dict[PieceTypeColor, SvgImage] = {
             (PieceType, color): SvgImage(
-                file=f"res/{PieceType.__name__.lower()}_{color}.svg",
+                file=f"res/{PieceType.__name__}_{color}.svg",
                 scaletowidth=SIZE.PIECE,
             )
-            for color, PieceType in FEN_MAP.values()
+            for PieceType, color in FEN_MAP.values()
         }
         self.btns: dict[Position, CachedBtn] = {}
         self.setup_buttons()
-        self.reset_bg_all()
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
             self.btns[pos] = (btn := CachedBtn(self, pos, self.PIECE_IMGS))
             btn.grid(row=pos[0], column=pos[1])
-
-    # TODO bring set bg to btn
-
-    def reset_bg_all(self):
-        for pos, btn in self.btns.items():
-            btn["bg"] = THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES
 
 
 class Root(Display):
@@ -121,33 +113,37 @@ class Root(Display):
         self.bind("<q>", lambda e: self.reset())
 
     def reset(self) -> None:
-        self.board = Board()
+        for btn in self.btns.values():
+            del btn.state
+        self.board.set_from_fen("6k1/Np2P2R/p6B/K1P2Np1/1p3P2/P2p4/8/3n3R w - - 0 1")
         self.refresh_pieces()
-        self.reset_bg_all()
 
     def refresh_pieces(self) -> None:
         btns = self.btns
         for pos, piece in self.board.items():
+            if btns[pos].piece_type_color != piece.type_color:
+                btns[pos].piece_type_color = piece.type_color
 
-            if btns[pos].piece_type_color != (type_color := (piece.type, piece.color)):
-                btns[pos].piece_type_color = type_color
+    def execute_move_root(self, move: Move) -> None:
+        color_move = self.board.color_move
+        if self.selected is None:
+            return
+        self.board.execute_move(self.selected, move)
+        self.refresh_pieces()
 
-    def check_for_end(self):
-        if self.board.checked():
+        if self.board.checkmated:
+            print("CHECKMATE!")
+            showinfo("Game ended!", f"CHECKMATE: {color_move.upper()} WINS!")
+            return
+
+        if self.board.stalemated:
+            print("STALEMATE!")
+            showinfo("Game ended!", f"STALEMATE: DRAW!")
+            return
+
+        if self.board.checked:
             print("CHECKED!")
 
-        if self.board.checkmated():
-            print("CHECKMATE!")
-            showinfo(
-                "Game ended!",
-                f"{self.board.color_move.other} WINS by CHECKMATE!\nPress q to start new game..",
-            )
-
-        if self.board.stalemated():
-            print("STALEMATE!")
-            showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
-
-    # FIXME: bugs on castling
     def bind_buttons(self):
         def contiguous_reset_bg(pos: Position):
             del self.btns[pos].state
@@ -170,9 +166,7 @@ class Root(Display):
                             return
 
                         if pos == move:
-                            self.board.execute_move(selected, move)
-                            self.refresh_pieces()
-                            self.check_for_end()
+                            self.execute_move_root(move)
                             self.selected = None
                             return
                     self.selected = None
