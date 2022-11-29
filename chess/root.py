@@ -23,6 +23,7 @@ class State(Enum):
     CAPTURABLE = auto()
     MOVABLE = auto()
     SELECTED = auto()
+    KING_CHECK =auto()
 
 
 class CachedBtn(Button):
@@ -37,6 +38,7 @@ class CachedBtn(Button):
             width=SIZE.TILE,
         )
         self.state_bg_dict = {
+            State.KING_CHECK: THEME.VALID_CAPTURE,
             State.CAPTURABLE: THEME.VALID_CAPTURE,
             State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT
             if light_tile(pos)
@@ -124,86 +126,96 @@ class Root(Display):
             if btns[pos].piece_type_color != piece.type_color:
                 btns[pos].piece_type_color = piece.type_color
 
-    def execute_move_root(self, move: Move) -> None:
-        color_move = self.board.color_move
-        if self.selected is None:
-            return
-        self.board.execute_move(self.selected, move)
+    def execute_move_root(self, pos: Position, move: Move) -> None:
+        board = self.board
+        color = board.color_move
+        board.execute_move(pos, move)
         self.refresh_pieces()
 
-        if self.board.checkmated:
-            print("CHECKMATE!")
-            showinfo("Game ended!", f"CHECKMATE: {color_move.upper()} WINS!")
+        if board.checked:
+            self.btns[board.find_king(color.other)].state = State.CAPTURABLE
+            if board.checkmated:
+                print("CHECKMATE!")
+                showinfo("Game ended!", f"CHECKMATE: {color.upper()} WINS!")
+                return
+            print("CHECKED!")
             return
 
-        if self.board.stalemated:
+        if board.stalemated:
             print("STALEMATE!")
             showinfo("Game ended!", f"STALEMATE: DRAW!")
             return
 
-        if self.board.checked:
-            print("CHECKED!")
-
     def bind_buttons(self):
-        def contiguous_reset_bg(pos: Position):
-            del self.btns[pos].state
-            for move in self.board.all_moves[pos]:
-                del self.btns[move].state
 
+        btns = self.btns
+        board = self.board
         def __bind_factory(pos: Position):
+            btn = btns[pos]
+            
             def on_click(e: Event) -> None:
                 selected = self.selected
-                all_moves = self.board.all_moves
+                all_moves = board.all_moves
 
                 # There was a selected move previously
                 if selected:
-                    contiguous_reset_bg(selected)
+                    self.selected = None  # Consume selection
+                    
+                    # Contiguous reset
+                    del btns[selected].state
+                    for move in all_moves[selected]:
+                        del btns[move].state
                     # Check all moves
                     for move in all_moves[selected]:
-
                         if pos == selected:
-                            self.selected = None
                             return
 
                         if pos == move:
-                            self.execute_move_root(move)
-                            self.selected = None
+                            self.execute_move_root(selected, move)
                             return
-                    self.selected = None
                 # No selected move previously, also an unmovable tile
+                if board.checked:
+                    btns[board.find_king()].state = State.KING_CHECK
+                
                 if pos not in all_moves:
                     return
 
                 # Tile is valid, so select it
                 for move in all_moves[pos]:
-                    self.btns[move].state = (
-                        State.CAPTURABLE if self.board[move] else State.MOVABLE
+                    btns[move].state = (
+                        State.CAPTURABLE if board[move] else State.MOVABLE
                     )
 
-                self.btns[pos].state = State.SELECTED
+                btn.state = State.SELECTED
                 self.selected = pos
 
             def on_enter(e: Event) -> None:
-                all_moves = self.board.all_moves
+                all_moves = board.all_moves
 
                 if self.selected or pos not in all_moves:
                     return
-                self.btns[pos].state = State.SELECTED
+                
+                btn.state = State.SELECTED
 
                 for move in all_moves[pos]:
-                    self.btns[move].state = (
-                        State.CAPTURABLE if self.board[move] else State.MOVABLE
+                    btns[move].state = (
+                        State.CAPTURABLE if board[move] else State.MOVABLE
                     )
 
             def on_exit(e: Event) -> None:
-                if self.selected or pos not in self.board.all_moves:
+                if self.selected or pos not in board.all_moves:
                     return
+                if board.checked and pos==board.find_king():
+                    btn.state = State.KING_CHECK
+                else:
+                    del btn.state
+                for move in board.all_moves[pos]:
+                    del btns[move].state
 
-                contiguous_reset_bg(pos)
 
             return on_click, on_enter, on_exit
 
-        for pos, btn in self.btns.items():
+        for pos, btn in btns.items():
             on_click, on_enter, on_exit = __bind_factory(pos)
             btn.bind("<ButtonRelease-1>", on_click)
             btn.bind("<Enter>", on_enter)

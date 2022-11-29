@@ -439,7 +439,9 @@ class Board(UserDict[Position, Piece]):
         self.data = board
         self.recompute_all_moves()
 
-    def king_pos(self, color: Color) -> Position:
+    def find_king(self, color: Color | None = None) -> Position:
+        if color is None:
+            color = self.color_move
         return next(
             pos
             for pos, piece in self.items()
@@ -451,7 +453,9 @@ class Board(UserDict[Position, Piece]):
 
     @property
     def checked(self) -> bool:
-        return not kingcheck_safe(self, self.king_pos(self.color_move), self.color_move)
+        return not kingcheck_safe(
+            self, self.find_king(self.color_move), self.color_move
+        )
 
     @property
     def checkmated(self) -> bool:
@@ -507,7 +511,6 @@ class Board(UserDict[Position, Piece]):
                 castling_flags.falsify(color, Flag.CASTLE_QSIDE)
             else:
                 castling_flags.falsify(color, Flag.CASTLE_KSIDE)
-                
 
         if flag == Flag.ENPASSANT and self.enpassant_target:
             del self[self.enpassant_target]
@@ -515,7 +518,7 @@ class Board(UserDict[Position, Piece]):
         self.enpassant_target = move if flag == Flag.ENPASSANT_TRGT else None
 
         self.simple_move(pos, move)
-        
+
         if flag == Flag.PROMOTION:
             self[move] = Queen(color)
 
