@@ -23,18 +23,18 @@ class Color(StrEnum):
 
     @property
     def dir(self) -> int:
-        return {Color.WHITE: -1, Color.BLACK: 1}.get(self, 0)
+        return {self.WHITE: -1, self.BLACK: 1}.get(self, 0)
 
     @property
     def other(self) -> Self:
         return {
-            Color.WHITE: Color.BLACK,
-            Color.BLACK: Color.WHITE,
-        }.get(self, Color.NONE)
+            self.WHITE: self.BLACK,
+            self.BLACK: self.WHITE,
+        }.get(self, self.NONE)
 
     @property
     def back_rank(self) -> int:
-        return {Color.WHITE: 7, Color.BLACK: 0}.get(self, -1)
+        return {self.WHITE: 7, self.BLACK: 0}.get(self, -1)
 
 
 # Chess Pieces and it's subclass
@@ -93,32 +93,33 @@ class Pawn(Piece):
     ) -> list[Move]:
         color = self.color
         dir = color.dir
+        pos_x, pos_y = pos
 
         all_moves = []
 
         # Enpassant
         all_moves.extend(
             Move(m, Flag.ENPASSANT)
-            for m in [(pos[0] + dir, pos[1] + 1), (pos[0] + dir, pos[1] - 1)]
-            if enpassant_target == (pos[0], m[1])
+            for m in [(pos_x + dir, pos_y + 1), (pos_x + dir, pos_y - 1)]
+            if enpassant_target == (pos_x, m[1])
         )
 
         # Pincer
         all_moves.extend(
             Move(m, Flag.PROMOTION if m[0] == color.other.back_rank else Flag.NONE)
-            for m in [(pos[0] + dir, pos[1] + 1), (pos[0] + dir, pos[1] - 1)]
+            for m in [(pos_x + dir, pos_y + 1), (pos_x + dir, pos_y - 1)]
             if in_bounds(m) and board[m].color == color.other
         )
 
         # Front long
         if (
-            pos[0] == (pawn_rank := 6 if color == Color.WHITE else 1)
-            and not board[(front_long := (pawn_rank + 2 * dir, pos[1]))]
+            pos_x == (pawn_rank := 6 if color == Color.WHITE else 1)
+            and not board[(front_long := (pawn_rank + 2 * dir, pos_y))]
         ):
             all_moves.append(Move(front_long, Flag.ENPASSANT_TRGT))
 
         # Front short
-        if not board[(front_short := (pos[0] + dir, pos[1]))]:
+        if not board[(front_short := (pos_x + dir, pos_y))]:
             all_moves.append(
                 Move(
                     front_short,
@@ -175,6 +176,8 @@ class King(Piece):
         self, board: Board, pos: Position, /, castling_flags: CastlingFlags, **kwargs
     ) -> list[Move]:
         color = self.color
+        pos_x, pos_y = pos
+
         all_moves = []
 
         king_not_checked = not board.checked
@@ -187,7 +190,7 @@ class King(Piece):
             and kingcheck_safe(board, (back_rank, 5), color)
             and not any(board[(back_rank, col)] for col in [5, 6])
         ):
-            all_moves.append(Move((pos[0], pos[1] + 2), Flag.CASTLE_KSIDE))
+            all_moves.append(Move((pos_x, pos_y + 2), Flag.CASTLE_KSIDE))
 
         # Queen-side castle
         if (
@@ -196,7 +199,7 @@ class King(Piece):
             and kingcheck_safe(board, (back_rank, 3), color)
             and not any(board[(back_rank, col)] for col in [1, 2, 3])
         ):
-            all_moves.append(Move((pos[0], pos[1] - 2), Flag.CASTLE_QSIDE))
+            all_moves.append(Move((pos_x, pos_y - 2), Flag.CASTLE_QSIDE))
 
         # Normal moves
         all_moves.extend(
@@ -234,6 +237,9 @@ class Flag(Enum):
     LOSE_ROOK_PRIV = auto()
     PROMOTION = auto()
 
+    def __bool__(self):
+        return self != Flag.NONE
+
 
 class CastlingFlags(UserDict[tuple[Color, Flag], bool]):
     FEN_CASTLING_DICT = {
@@ -249,16 +255,17 @@ class CastlingFlags(UserDict[tuple[Color, Flag], bool]):
             for color_side, i in self.FEN_CASTLING_DICT.items()
         }
 
-    def falsify(self, color: Color, flag: Flag = Flag.NONE) -> None:
-        if flag:
-            self[color, flag] = False
+    def falsify(self, color: Color, flag: Flag = Flag.LOSE_KING_PRIV) -> None:
+        if Flag.LOSE_KING_PRIV:
+            self[color, Flag.CASTLE_QSIDE] = False
+            self[color, Flag.CASTLE_KSIDE] = False
             return
-        self[color, Flag.CASTLE_QSIDE] = False
-        self[color, Flag.CASTLE_KSIDE] = False
+        self[color, flag] = False
 
 
 def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     enemy_color = color.other
+    pos_x, pos_y = pos
 
     if any(
         board[m].type == Knight and board[m].color == enemy_color for m in l_moves(pos)
@@ -294,8 +301,8 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     return not any(
         in_bounds(m) and board[m].type == Pawn and board[m].color == enemy_color
         for m in [
-            (pos[0] + color.dir, pos[1] + 1),
-            (pos[0] + color.dir, pos[1] - 1),
+            (pos_x + color.dir, pos_y + 1),
+            (pos_x + color.dir, pos_y - 1),
         ]
     )
 
@@ -367,34 +374,40 @@ def in_bounds(pos: Position) -> bool:
 
 
 def diag_moves(pos: Position, n=7) -> filter[Move]:
+    pos_x, pos_y = pos
+
     moves = []
     for i in range(1, n + 1):
-        NE = (pos[0] + i, pos[1] + i)
-        NW = (pos[0] + i, pos[1] - i)
-        SE = (pos[0] - i, pos[1] + i)
-        SW = (pos[0] - i, pos[1] - i)
+        NE = (pos_x + i, pos_y + i)
+        NW = (pos_x + i, pos_y - i)
+        SE = (pos_x - i, pos_y + i)
+        SW = (pos_x - i, pos_y - i)
         moves.extend(Move(m) for m in [NE, NW, SE, SW])
     return filter(in_bounds, moves)
 
 
 def perp_moves(pos: Position, n=7) -> filter[Move]:
+    pos_x, pos_y = pos
+
     moves = []
     for i in range(1, n + 1):
-        N = (pos[0] + i, pos[1])
-        S = (pos[0] - i, pos[1])
-        E = (pos[0], pos[1] + i)
-        W = (pos[0], pos[1] - i)
+        N = (pos_x + i, pos_y)
+        S = (pos_x - i, pos_y)
+        E = (pos_x, pos_y + i)
+        W = (pos_x, pos_y - i)
         moves.extend(Move(m) for m in [N, S, E, W])
     return filter(in_bounds, moves)
 
 
 def l_moves(pos: Position) -> filter[Move]:
+    pos_x, pos_y = pos
+
     moves = []
     quadrant = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = [(1, 2), (2, 1)]
     for q, m in product(quadrant, magnitude):
         x, y = np.multiply(q, m)
-        moves.append(Move((pos[0] + x, pos[1] + y)))
+        moves.append(Move((pos_x + x, pos_y + y)))
     return filter(in_bounds, moves)
 
 
@@ -519,10 +532,9 @@ class Board(UserDict[Position, Piece]):
             castling_flags.falsify(color)
 
         if flag == Flag.LOSE_ROOK_PRIV:
-            if pos == (back_rank, 0):
-                castling_flags.falsify(color, Flag.CASTLE_QSIDE)
-            else:
-                castling_flags.falsify(color, Flag.CASTLE_KSIDE)
+            castling_flags.falsify(
+                color, Flag.CASTLE_QSIDE if pos == (back_rank, 0) else Flag.CASTLE_KSIDE
+            )
 
         if flag == Flag.ENPASSANT and self.enpassant_target:
             del self[self.enpassant_target]

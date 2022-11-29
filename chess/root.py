@@ -23,7 +23,7 @@ class State(Enum):
     CAPTURABLE = auto()
     MOVABLE = auto()
     SELECTED = auto()
-    KING_CHECK =auto()
+    KING_CHECK = auto()
 
 
 class CachedBtn(Button):
@@ -129,11 +129,12 @@ class Root(Display):
     def execute_move_root(self, pos: Position, move: Move) -> None:
         board = self.board
         color = board.color_move
+        del self.btns[board.find_king()].state
         board.execute_move(pos, move)
         self.refresh_pieces()
 
         if board.checked:
-            self.btns[board.find_king(color.other)].state = State.CAPTURABLE
+            self.btns[board.find_king()].state = State.KING_CHECK
             if board.checkmated:
                 print("CHECKMATE!")
                 showinfo("Game ended!", f"CHECKMATE: {color.upper()} WINS!")
@@ -150,9 +151,10 @@ class Root(Display):
 
         btns = self.btns
         board = self.board
+
         def __bind_factory(pos: Position):
             btn = btns[pos]
-            
+
             def on_click(e: Event) -> None:
                 selected = self.selected
                 all_moves = board.all_moves
@@ -160,7 +162,7 @@ class Root(Display):
                 # There was a selected move previously
                 if selected:
                     self.selected = None  # Consume selection
-                    
+
                     # Contiguous reset
                     del btns[selected].state
                     for move in all_moves[selected]:
@@ -174,9 +176,9 @@ class Root(Display):
                             self.execute_move_root(selected, move)
                             return
                 # No selected move previously, also an unmovable tile
+
                 if board.checked:
                     btns[board.find_king()].state = State.KING_CHECK
-                
                 if pos not in all_moves:
                     return
 
@@ -194,7 +196,7 @@ class Root(Display):
 
                 if self.selected or pos not in all_moves:
                     return
-                
+
                 btn.state = State.SELECTED
 
                 for move in all_moves[pos]:
@@ -205,13 +207,13 @@ class Root(Display):
             def on_exit(e: Event) -> None:
                 if self.selected or pos not in board.all_moves:
                     return
-                if board.checked and pos==board.find_king():
-                    btn.state = State.KING_CHECK
+
+                if board.checked and pos == board.find_king():
+                    btns[pos].state = State.KING_CHECK
                 else:
                     del btn.state
                 for move in board.all_moves[pos]:
                     del btns[move].state
-
 
             return on_click, on_enter, on_exit
 
