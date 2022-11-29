@@ -156,7 +156,7 @@ class King(Piece):
         color = self.color
         all_moves = []
 
-        king_not_checked = board.checked(color)
+        king_not_checked = not board.checked(color)
         back_rank = color.back_rank
 
         # Short castle
@@ -232,7 +232,6 @@ class CastlingFlags(UserDict[tuple[Color, Flag], bool]):
 
 def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     enemy_color = color.other
-    
 
     if any(
         type(board[m]) == Knight and board[m].color == enemy_color for m in l_moves(pos)
@@ -266,7 +265,7 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
 
     # check pincer for pawn
     return not any(
-        type(board[m]) == King and board[m].color == enemy_color
+        in_bounds(m) and type(board[m]) == King and board[m].color == enemy_color
         for m in [
             (pos[0] + color.dir, pos[1] + 1),
             (pos[0] + color.dir, pos[1] - 1),
