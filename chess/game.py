@@ -41,6 +41,11 @@ class Color(StrEnum):
 class Piece(ABC):
     color: Color
 
+    @classmethod
+    @property
+    def type(cls) -> Type[Piece]:
+        return cls
+    
     @property
     def dir(self) -> int:
         return self.color.dir
@@ -234,13 +239,13 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     enemy_color = color.other
 
     if any(
-        type(board[m]) == Knight and board[m].color == enemy_color for m in l_moves(pos)
+        board[m].type == Knight and board[m].color == enemy_color for m in l_moves(pos)
     ):
         return False
 
     # check perpendiculars
     if any(
-        type(board[m]) in (Queen, Rook)
+        board[m].type in (Queen, Rook)
         and board[m].color == enemy_color
         and no_obstruction(board, pos, m)
         for m in perp_moves(pos)
@@ -249,7 +254,7 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
 
     # check diagonals
     if any(
-        type(board[m]) in (Queen, Bishop)
+        board[m].type in (Queen, Bishop)
         and board[m].color == enemy_color
         and no_obstruction(board, pos, m)
         for m in diag_moves(pos)
@@ -258,14 +263,14 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
 
     # check adjacent for king
     if any(
-        type(board[m]) == King and board[m].color == enemy_color
+        board[m].type == King and board[m].color == enemy_color
         for m in [*perp_moves(pos, 1), *diag_moves(pos, 1)]
     ):
         return False
 
     # check pincer for pawn
     return not any(
-        in_bounds(m) and type(board[m]) == Pawn and board[m].color == enemy_color
+        in_bounds(m) and board[m].type == Pawn and board[m].color == enemy_color
         for m in [
             (pos[0] + color.dir, pos[1] + 1),
             (pos[0] + color.dir, pos[1] - 1),
@@ -400,7 +405,7 @@ class Board(UserDict[Position, Piece]):
         return next(
             pos
             for pos, piece in self.items()
-            if piece.color == color and type(piece) == King
+            if piece.color == color and piece.type == King
         )
 
     def toggle_color_move(self) -> None:
