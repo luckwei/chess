@@ -88,6 +88,22 @@ class Root(Display):
     def refresh_pieces(self) -> None:
         for pos, piece in self.board.items():
             self.refresh_fg(pos, piece)
+            
+    def check_for_end(self):
+        if self.board.checked():
+            print("CHECKED!")
+
+        if self.board.checkmated():
+            print("CHECKMATE!")
+            showinfo(
+                "Game ended!",
+                f"{self.board.color_move.other} WINS by CHECKMATE!\nPress q to start new game..",
+            )
+
+        if self.board.stalemated():
+            print("STALEMATE!")
+            showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
+            
     #FIXME: bugs on castling 
     def bind_buttons(self):
         def contiguous_reset_bg(pos: Position):
@@ -113,6 +129,7 @@ class Root(Display):
                         if pos == move:
                             self.board.execute_move(selected, move)
                             self.refresh_pieces()
+                            self.check_for_end()
                             self.selected = None
                             return
                     self.selected = None

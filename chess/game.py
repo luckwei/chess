@@ -265,7 +265,7 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
 
     # check pincer for pawn
     return not any(
-        in_bounds(m) and type(board[m]) == King and board[m].color == enemy_color
+        in_bounds(m) and type(board[m]) == Pawn and board[m].color == enemy_color
         for m in [
             (pos[0] + color.dir, pos[1] + 1),
             (pos[0] + color.dir, pos[1] - 1),
@@ -411,15 +411,11 @@ class Board(UserDict[Position, Piece]):
             color = self.color_move
         return not kingcheck_safe(self, self.king_pos(color), color)
 
-    def checkmated(self, color: Color | None = None) -> bool:
-        if color is None:
-            color = self.color_move
-        return not self.recompute_all_moves(color) and self.checked(color)
+    def checkmated(self) -> bool:
+        return not self.all_moves and self.checked()
 
     def stalemated(self, color: Color | None = None) -> bool:
-        if color is None:
-            color = self.color_move
-        return not self.recompute_all_moves(color) and not self.checked(color)
+        return not self.all_moves and not self.checked()
 
     def recompute_all_moves(self, color: Color | None = None) -> None:
         if color is None:
@@ -474,19 +470,6 @@ class Board(UserDict[Position, Piece]):
         self.enpassant_target = move if flag == Flag.ENPASSANT_TRGT else None
 
         self.simple_move(pos, move)
+        
         self.toggle_color_move()
         self.recompute_all_moves()
-
-        # if self.checked():
-        #     print("CHECKED!")
-
-        # if self.checkmated():
-        #     print("CHECKMATE!")
-        #     showinfo(
-        #         "Game ended!",
-        #         f"{self.color_move.other} WINS by CHECKMATE!\nPress q to start new game..",
-        #     )
-
-        # if self.stalemated():
-        #     print("STALEMATE!")
-        #     showinfo("Game ended!", f"DRAW BY STALMATE!\nPress q to start new game..")
