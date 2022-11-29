@@ -67,6 +67,10 @@ class Display(Tk):
         self.btns[pos]["bg"] = STATE_BG_DICT.get(
             state, THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES
         )
+    
+    def refresh_bg_all(self):
+        for pos, btn in self.btns.items():
+            btn["bg"] = THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES
 
 
 class Root(Display):
@@ -83,7 +87,12 @@ class Root(Display):
 
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
-        # self.bind("<q>", lambda e: self.reset())
+        self.bind("<q>", lambda e: self.reset())
+    
+    def reset(self) -> None:
+        self.board = Board()
+        self.refresh_pieces()
+        self.refresh_bg_all()
     
     def refresh_pieces(self) -> None:
         for pos, piece in self.board.items():
