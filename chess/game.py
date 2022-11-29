@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import InitVar, dataclass, field
 from enum import Enum, StrEnum, auto
 from itertools import product
+from random import choice
 from tkinter.messagebox import showinfo
 from typing import Self, Type
 
@@ -409,7 +410,18 @@ class Board(UserDict[Position, Piece]):
     def __post_init__(self, fen_string):
         self.set_from_fen(fen_string)
 
-    def set_from_fen(self, fen_string: str = Setup.START) -> None:
+    def set_from_fen(self, fen_string: str = Setup.START, random=False) -> None:
+
+        if random:
+            fen_string = choice(
+                [
+                    "1N3B2/5R2/3pP3/R6n/4P3/5prP/1K3PB1/4kq2 w - - 0 1",
+                    "6k1/Np2P2R/p6B/K1P2Np1/1p3P2/P2p4/8/3n3R w - - 0 1",
+                    "8/1p1r2p1/5P2/R6p/rN4P1/1kN1n3/1P1P3P/6K1 w - - 0 1",
+                    "1q5B/1pp4p/PP6/1r6/R3B3/4P2k/p2N4/5Kb1 w - - 0 1",
+                ]
+            )
+
         (
             board_configuration,
             color_move,

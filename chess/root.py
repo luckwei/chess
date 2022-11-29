@@ -117,7 +117,7 @@ class Root(Display):
     def reset(self) -> None:
         for btn in self.btns.values():
             del btn.state
-        self.board.set_from_fen("6k1/Np2P2R/p6B/K1P2Np1/1p3P2/P2p4/8/3n3R w - - 0 1")
+        self.board.set_from_fen(random=True)
         self.refresh_pieces()
 
     def refresh_pieces(self) -> None:
