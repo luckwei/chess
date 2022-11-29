@@ -470,6 +470,6 @@ class Board(UserDict[Position, Piece]):
         self.enpassant_target = move if flag == Flag.ENPASSANT_TRGT else None
 
         self.simple_move(pos, move)
-        
+
         self.toggle_color_move()
         self.recompute_all_moves()
