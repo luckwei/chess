@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from enum import Enum, auto
 from itertools import product
-from tkinter import Button, Event, Tk, Widget
+from tkinter import Button, Event, Tk
 from tkinter.messagebox import showinfo
-from typing import Callable, Type
+from typing import Type
 
 from tksvg import SvgImage
 
 from .constants import SIZE, THEME
 from .game import FEN_MAP, Board, Color, Empty, Piece
-from .setup import Setup
 from .types import Position
 
 
@@ -26,47 +25,21 @@ class State(Enum):
     SELECTED = auto()
 
 
+PieceTypeColor = tuple[Type[Piece], Color]
+
+
 class CachedBtn(Button):
-    def __init__(self, parent):
+    def __init__(
+        self, master: Display, pos: Position, piece_imgs: dict[PieceTypeColor, SvgImage]
+    ):
         super().__init__(
-            parent,
+            master,
             activebackground=THEME.ACTIVE_BG,
             bd=0,
             height=SIZE.TILE,
             width=SIZE.TILE,
         )
-        self.piece_type_color: tuple[Type[Piece], Color] | None = None
-
-
-class Display(Tk):
-    def __init__(self) -> None:
-        super().__init__()
-        self.btns: dict[Position, CachedBtn] = {}
-        self.setup_buttons()
-        self.reset_bg_all()
-        self.__IMG_DICT = {
-            (PieceType, color): SvgImage(
-                file=f"res/{PieceType.__name__.lower()}_{color}.svg", scaletowidth=SIZE.PIECE
-            )
-            for color, PieceType in FEN_MAP.values()
-        }
-
-    def setup_buttons(self):
-        for pos in product(range(8), range(8)):
-            button = CachedBtn(self)
-            self.btns[pos] = button
-            button.grid(row=pos[0], column=pos[1])
-
-    def set_fg(self, pos: Position, piece: Piece = Empty()) -> None:
-        btn = self.btns[pos]
-        piece_type_color = type(piece), piece.color
-
-        if btn.piece_type_color != piece_type_color:
-            btn["image"] = self.__IMG_DICT[piece_type_color]
-            btn.piece_type_color = piece_type_color
-
-    def set_bg(self, pos: Position, state: State = State.DEFAULT) -> None:
-        STATE_BG_DICT = {
+        self.state_bg_dict = {
             State.CAPTURABLE: THEME.VALID_CAPTURE,
             State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT
             if light_tile(pos)
@@ -74,9 +47,57 @@ class Display(Tk):
             State.SELECTED: THEME.ACTIVE_BG,
             State.DEFAULT: THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES,
         }
-        self.btns[pos]["bg"] = STATE_BG_DICT.get(
-            state, THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES
-        )
+        self.PIECE_IMGS = piece_imgs
+        self.piece_type_color = Empty, Color.NONE
+        self.state = State.DEFAULT
+
+    @property
+    def piece_type_color(self) -> PieceTypeColor:
+        return self._piece_type_color
+
+    @piece_type_color.setter
+    def piece_type_color(self, type_color: PieceTypeColor):
+        self._piece_type_color = type_color
+        self["image"] = self.PIECE_IMGS[type_color]
+
+    @piece_type_color.deleter
+    def piece_type_color(self):
+        self.piece_type_color = Empty, Color.NONE
+
+    @property
+    def state(self) -> State:
+        return self._state
+
+    @state.setter
+    def state(self, new_state: State):
+        self._state = new_state
+        self["bg"] = self.state_bg_dict[new_state]
+
+    @state.deleter
+    def state(self):
+        self.state = State.DEFAULT
+
+
+class Display(Tk):
+    def __init__(self) -> None:
+        super().__init__()
+        self.PIECE_IMGS: dict[PieceTypeColor, SvgImage] = {
+            (PieceType, color): SvgImage(
+                file=f"res/{PieceType.__name__.lower()}_{color}.svg",
+                scaletowidth=SIZE.PIECE,
+            )
+            for color, PieceType in FEN_MAP.values()
+        }
+        self.btns: dict[Position, CachedBtn] = {}
+        self.setup_buttons()
+        self.reset_bg_all()
+
+    def setup_buttons(self):
+        for pos in product(range(8), range(8)):
+            self.btns[pos] = (btn := CachedBtn(self, pos, self.PIECE_IMGS))
+            btn.grid(row=pos[0], column=pos[1])
+
+    # TODO bring set bg to btn
 
     def reset_bg_all(self):
         for pos, btn in self.btns.items():
@@ -105,8 +126,11 @@ class Root(Display):
         self.reset_bg_all()
 
     def refresh_pieces(self) -> None:
+        btns = self.btns
         for pos, piece in self.board.items():
-            self.set_fg(pos, piece)
+
+            if btns[pos].piece_type_color != (type_color := (piece.type, piece.color)):
+                btns[pos].piece_type_color = type_color
 
     def check_for_end(self):
         if self.board.checked():
@@ -126,9 +150,9 @@ class Root(Display):
     # FIXME: bugs on castling
     def bind_buttons(self):
         def contiguous_reset_bg(pos: Position):
-            self.set_bg(pos)
+            del self.btns[pos].state
             for move in self.board.all_moves[pos]:
-                self.set_bg(move)
+                del self.btns[move].state
 
         def __bind_factory(pos: Position):
             def on_click(e: Event) -> None:
@@ -158,33 +182,27 @@ class Root(Display):
 
                 # Tile is valid, so select it
                 for move in all_moves[pos]:
-                    self.set_bg(
-                        move,
-                        State.CAPTURABLE if self.board[move] else State.MOVABLE,
+                    self.btns[move].state = (
+                        State.CAPTURABLE if self.board[move] else State.MOVABLE
                     )
 
-                self.set_bg(pos, State.SELECTED)
+                self.btns[pos].state = State.SELECTED
                 self.selected = pos
 
             def on_enter(e: Event) -> None:
-                selected_pos = self.selected
                 all_moves = self.board.all_moves
 
-                if selected_pos or pos not in all_moves:
+                if self.selected or pos not in all_moves:
                     return
+                self.btns[pos].state = State.SELECTED
 
-                self.set_bg(pos, State.SELECTED)
                 for move in all_moves[pos]:
-                    self.set_bg(
-                        move,
-                        State.CAPTURABLE if self.board[move] else State.MOVABLE,
+                    self.btns[move].state = (
+                        State.CAPTURABLE if self.board[move] else State.MOVABLE
                     )
 
             def on_exit(e: Event) -> None:
-                selected_pos = self.selected
-                all_moves = self.board.all_moves
-
-                if selected_pos or pos not in all_moves:
+                if self.selected or pos not in self.board.all_moves:
                     return
 
                 contiguous_reset_bg(pos)
