@@ -446,7 +446,8 @@ class Board(UserDict[Position, Piece]):
         self[to] = self[frm]
         del self[frm]
 
-    def execute_move(self, frm: Position, to: Position, flag: Flag = Flag.NONE) -> None:
+    def execute_move(self, pos: Position, move: Move) -> None:
+        flag = move.flag
         color = self.color_move
         castling_flags = self.castling_flags
         back_rank = color.back_rank
@@ -463,7 +464,7 @@ class Board(UserDict[Position, Piece]):
             castling_flags.falsify(color)
 
         if flag == Flag.LOSE_ROOK_PRIV:
-            if frm == (back_rank, 0):
+            if pos == (back_rank, 0):
                 castling_flags.falsify(color, Flag.CASTLE_LONG)
             else:
                 castling_flags.falsify(color, Flag.CASTLE_SHORT)
@@ -471,9 +472,9 @@ class Board(UserDict[Position, Piece]):
         if flag == Flag.ENPASSANT and self.enpassant_target:
             del self[self.enpassant_target]
 
-        self.enpassant_target = to if flag == Flag.ENPASSANT_TRGT else None
+        self.enpassant_target = move if flag == Flag.ENPASSANT_TRGT else None
 
-        self.simple_move(frm, to)
+        self.simple_move(pos, move)
         self.toggle_color_move()
         self.recompute_all_moves()
 

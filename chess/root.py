@@ -77,7 +77,7 @@ class Root(Display):
 
         self.board = Board()
         self.refresh_pieces()
-        self.selected_pos: Position | None = None
+        self.selected: Position | None = None
 
         self.bind_buttons()
 
@@ -88,7 +88,7 @@ class Root(Display):
     def refresh_pieces(self) -> None:
         for pos, piece in self.board.items():
             self.refresh_fg(pos, piece)
-
+    #FIXME: bugs on castling 
     def bind_buttons(self):
         def contiguous_reset_bg(pos: Position):
             self.refresh_bg(pos)
@@ -97,25 +97,25 @@ class Root(Display):
 
         def __bind_factory(pos: Position):
             def on_click(e: Event) -> None:
-                selected_pos = self.selected_pos
+                selected = self.selected
                 all_moves = self.board.all_moves
 
                 # There was a selected move previously
-                if selected_pos:
-                    contiguous_reset_bg(selected_pos)
+                if selected:
+                    contiguous_reset_bg(selected)
                     # Check all moves
-                    for move in all_moves[selected_pos]:
-                        to, flag = move, move.flag
+                    for move in all_moves[selected]:
 
-                        if pos == self.selected_pos:
-                            self.selected_pos = None
+                        if pos == selected:
+                            self.selected = None
                             return
 
-                        if pos == to:
-                            self.board.execute_move(selected_pos, to, flag)
+                        if pos == move:
+                            self.board.execute_move(selected, move)
                             self.refresh_pieces()
-                            self.selected_pos = None
+                            self.selected = None
                             return
+                    self.selected = None
                 # No selected move previously, also an unmovable tile
                 if pos not in all_moves:
                     return
@@ -128,15 +128,16 @@ class Root(Display):
                     )
 
                 self.refresh_bg(pos, State.SELECTED)
-                self.selected_pos = pos
+                self.selected = pos
 
             def on_enter(e: Event) -> None:
-                selected_pos = self.selected_pos
+                selected_pos = self.selected
                 all_moves = self.board.all_moves
 
                 if selected_pos or pos not in all_moves:
                     return
 
+                self.refresh_bg(pos, State.SELECTED)
                 for move in all_moves[pos]:
                     self.refresh_bg(
                         move,
@@ -144,7 +145,7 @@ class Root(Display):
                     )
 
             def on_exit(e: Event) -> None:
-                selected_pos = self.selected_pos
+                selected_pos = self.selected
                 all_moves = self.board.all_moves
 
                 if selected_pos or pos not in all_moves:
