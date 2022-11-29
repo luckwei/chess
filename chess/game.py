@@ -104,7 +104,7 @@ class Pawn(Piece):
 
         # Pincer
         all_moves.extend(
-            Move(m)
+            Move(m, Flag.PROMOTION if m[0] == color.other.back_rank else Flag.NONE)
             for m in [(pos[0] + dir, pos[1] + 1), (pos[0] + dir, pos[1] - 1)]
             if in_bounds(m) and board[m].color == color.other
         )
@@ -116,8 +116,16 @@ class Pawn(Piece):
         ):
             all_moves.append(Move(front_long, Flag.ENPASSANT_TRGT))
 
+        # Front short
         if not board[(front_short := (pos[0] + dir, pos[1]))]:
-            all_moves.append(Move(front_short))
+            all_moves.append(
+                Move(
+                    front_short,
+                    Flag.PROMOTION
+                    if front_short[0] == color.other.back_rank
+                    else Flag.NONE,
+                )
+            )
 
         return [
             m for m in all_moves if final_checks(m, pos, board, color, enpassant_target)
@@ -223,6 +231,7 @@ class Flag(Enum):
     CASTLE_KSIDE = auto()
     LOSE_KING_PRIV = auto()
     LOSE_ROOK_PRIV = auto()
+    PROMOTION = auto()
 
 
 class CastlingFlags(UserDict[tuple[Color, Flag], bool]):
@@ -419,8 +428,8 @@ class Board(UserDict[Position, Piece]):
             col, row = enpassant_trgt
             self.enpassant_target = 8 - int(row), "abcdefgh".index(col)
 
-        for digit in "12345678":
-            board_configuration = board_configuration.replace(digit, " " * int(digit))
+        for i in "12345678":
+            board_configuration = board_configuration.replace(i, " " * int(i))
 
         board = {}
         for i, p in enumerate(board_configuration):
@@ -498,6 +507,7 @@ class Board(UserDict[Position, Piece]):
                 castling_flags.falsify(color, Flag.CASTLE_QSIDE)
             else:
                 castling_flags.falsify(color, Flag.CASTLE_KSIDE)
+                
 
         if flag == Flag.ENPASSANT and self.enpassant_target:
             del self[self.enpassant_target]
@@ -505,6 +515,9 @@ class Board(UserDict[Position, Piece]):
         self.enpassant_target = move if flag == Flag.ENPASSANT_TRGT else None
 
         self.simple_move(pos, move)
+        
+        if flag == Flag.PROMOTION:
+            self[move] = Queen(color)
 
         self.toggle_color_move()
         self.recompute_all_moves()
