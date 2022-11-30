@@ -1,23 +1,16 @@
 from __future__ import annotations
 
 from collections import UserDict
-from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import product
 from tkinter import Button, Event, Tk
 from tkinter.messagebox import showinfo
-from typing import Type
 
 from tksvg import SvgImage
 
 from .constants import SIZE, THEME
 from .game import FEN_MAP, Board, Color, Empty, Move, PieceTypeColor
 from .types import Position
-
-
-# from playsound import playsound
-def light_tile(pos: Position) -> bool:
-    return sum(pos) % 2 == 0
 
 
 class State(Enum):
@@ -28,21 +21,22 @@ class State(Enum):
     KING_CHECK = auto()
 
 
-class CachedBtn(Button):
-    STATE_BG_BASE = {
-        State.SELECTED: THEME.ACTIVE_BG,
-        State.KING_CHECK: THEME.VALID_CAPTURE,
-        State.CAPTURABLE: THEME.VALID_CAPTURE,
-    }
-    STATE_BG_LIGHT = STATE_BG_BASE | {
-        State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT,
-        State.DEFAULT: THEME.LIGHT_TILES,
-    }
-    STATE_BG_DARK = STATE_BG_BASE | {
-        State.MOVABLE: THEME.VALID_HIGHLIGHT_DARK,
-        State.DEFAULT: THEME.DARK_TILES,
-    }
+STATE_BG_BASE = {
+    State.SELECTED: THEME.ACTIVE_BG,
+    State.KING_CHECK: THEME.VALID_CAPTURE,
+    State.CAPTURABLE: THEME.VALID_CAPTURE,
+}
+STATE_BG_LIGHT = STATE_BG_BASE | {
+    State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT,
+    State.DEFAULT: THEME.LIGHT_TILES,
+}
+STATE_BG_DARK = STATE_BG_BASE | {
+    State.MOVABLE: THEME.VALID_HIGHLIGHT_DARK,
+    State.DEFAULT: THEME.DARK_TILES,
+}
 
+
+class CachedBtn(Button):
     def __init__(self, display: Display, pos: Position):
         super().__init__(
             display,
@@ -51,8 +45,9 @@ class CachedBtn(Button):
             height=SIZE.TILE,
             width=SIZE.TILE,
         )
-        self.STATE_BG = self.STATE_BG_LIGHT if light_tile(pos) else self.STATE_BG_DARK
-        self.PIECE_IMGS: dict[PieceTypeColor, SvgImage] = display.PIECE_IMGS
+        self.PIECE_IMGS = display.PIECE_IMGS
+        self.STATE_BG = STATE_BG_LIGHT if sum(pos) % 2 == 0 else STATE_BG_DARK
+
         self.piece_type_color = Empty, Color.NONE
         self.state = State.DEFAULT
 
@@ -85,7 +80,8 @@ class CachedBtn(Button):
             self.state = State.DEFAULT
 
 
-class Display(Tk, UserDict[Position, CachedBtn]):
+# Ordered to prioritise getitem, setitem of UserDict
+class Display(UserDict[Position, CachedBtn], Tk):
     def __init__(self) -> None:
         Tk.__init__(self)
         UserDict.__init__(self)
@@ -98,15 +94,9 @@ class Display(Tk, UserDict[Position, CachedBtn]):
         }
         self.setup_buttons()
 
-    def __getitem__(self, pos: Position) -> CachedBtn:
-        return UserDict.__getitem__(self, pos)
-
-    def __setitem__(self, pos: Position, btn: CachedBtn) -> None:
-        UserDict.__setitem__(self, pos, btn)
-
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
-            self[pos] = (btn:=CachedBtn(self, pos))
+            self[pos] = (btn := CachedBtn(self, pos))
             btn.grid(row=pos[0], column=pos[1])
 
 
@@ -125,9 +115,6 @@ class Root(Display):
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
         self.bind("<q>", lambda e: self.reset())
-
-    def __post_init__(self):
-        ...
 
     def reset(self) -> None:
         for btn in self.values():
