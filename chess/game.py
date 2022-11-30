@@ -36,7 +36,7 @@ class Color(StrEnum):
         return {self.WHITE: 7, self.BLACK: 0}.get(self, -1)
 
 
-# Chess Pieces and it's subclass
+# Chess Pieces and its subclasses
 @dataclass(slots=True, frozen=True, eq=True)
 class Piece(ABC):
     color: Color
@@ -112,20 +112,20 @@ class Rook(Piece):
     def moves(self, board: Board, pos: Position) -> list[Move]:
         return [
             Move(m, Flag.LOSE_ROOK_PRIV)
-            for m in perp_moves(pos)
+            for m in perp_m(pos)
             if final_checks(m, pos, board)
         ]
 
 
 class Knight(Piece):
     def moves(self, board: Board, pos: Position) -> list[Move]:
-        return [m for m in l_moves(pos) if final_checks(m, pos, board)]
+        return [m for m in lshp_m(pos) if final_checks(m, pos, board)]
 
 
 class Bishop(Piece):
     def moves(self, board: Board, pos: Position) -> list[Move]:
         color = self.color
-        return [m for m in diag_moves(pos) if final_checks(m, pos, board)]
+        return [m for m in diag_m(pos) if final_checks(m, pos, board)]
 
 
 class Queen(Piece):
@@ -133,7 +133,7 @@ class Queen(Piece):
         color = self.color
         return [
             m
-            for m in [*diag_moves(pos), *perp_moves(pos)]
+            for m in [*diag_m(pos), *perp_m(pos)]
             if final_checks(m, pos, board)
         ]
 
@@ -170,7 +170,7 @@ class King(Piece):
         # Normal moves
         all_moves.extend(
             Move(m, Flag.LOSE_KING_PRIV)
-            for m in [*diag_moves(pos, 1), *perp_moves(pos, 1)]
+            for m in [*diag_m(pos, 1), *perp_m(pos, 1)]
         )
 
         return [m for m in all_moves if final_checks(m, pos, board)]
@@ -234,14 +234,14 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     enemy_color = color.other
     pos_x, pos_y = pos
 
-    if any(board[m] == Knight(enemy_color) for m in l_moves(pos)):
+    if any(board[m] == Knight(enemy_color) for m in lshp_m(pos)):
         return False
 
     # check perpendiculars
     if any(
         board[m] in (Queen(enemy_color), Rook(enemy_color))
         and no_obstruction(board, pos, m)
-        for m in perp_moves(pos)
+        for m in perp_m(pos)
     ):
         return False
 
@@ -249,14 +249,14 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     if any(
         board[m] in (Queen(enemy_color), Bishop(enemy_color))
         and no_obstruction(board, pos, m)
-        for m in diag_moves(pos)
+        for m in diag_m(pos)
     ):
         return False
 
     # check adjacent for king
     if any(
         board[m] == King(enemy_color)
-        for m in [*perp_moves(pos, 1), *diag_moves(pos, 1)]
+        for m in [*perp_m(pos, 1), *diag_m(pos, 1)]
     ):
         return False
 
@@ -322,12 +322,27 @@ def final_checks(
 
     return not end_game.checked
 
+class Delta(Position):
+    def __new__(cls, x, y) -> Self:
+        return tuple.__new__(cls, (x, y))
 
-class Move(Position):
+    def __add__(self, other: Position):
+        return self[0] + other[0], self[1] + other[1]
+
+    def __radd__(self, other: Position):
+        return self.__add__(other)
+    
+    def __sub__(self, other: Position):
+        return self[0] - other[0], self[1] - other[1]
+    
+    def __rsub__(self, other: Position):
+        return other[0] - self[0], other[1] - other[0]
+    
+class Move(Delta):
     flag: Flag
 
     def __new__(cls, pos: Position, flag=Flag.NONE) -> Self:
-        self = super().__new__(cls, pos)
+        self = tuple.__new__(cls, pos)
         setattr(self, "flag", flag)
         return self
 
@@ -336,7 +351,7 @@ def in_bounds(pos: Position) -> bool:
     return max(pos) <= 7 and min(pos) >= 0
 
 
-def diag_moves(pos: Position, n=7) -> filter[Move]:
+def diag_m(pos: Position, n=7) -> filter[Move]:
     pos_x, pos_y = pos
 
     moves = []
@@ -349,7 +364,7 @@ def diag_moves(pos: Position, n=7) -> filter[Move]:
     return filter(in_bounds, moves)
 
 
-def perp_moves(pos: Position, n=7) -> filter[Move]:
+def perp_m(pos: Position, n=7) -> filter[Move]:
     pos_x, pos_y = pos
 
     moves = []
@@ -362,7 +377,7 @@ def perp_moves(pos: Position, n=7) -> filter[Move]:
     return filter(in_bounds, moves)
 
 
-def l_moves(pos: Position) -> filter[Move]:
+def lshp_m(pos: Position) -> filter[Move]:
     pos_x, pos_y = pos
 
     moves = []
