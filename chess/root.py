@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 from collections import UserDict
 from dataclasses import dataclass, field
-
 from enum import Enum, auto
 from itertools import product
 from tkinter import Button, Event, Tk
@@ -29,26 +29,30 @@ class State(Enum):
 
 
 class CachedBtn(Button):
-    def __init__(
-        self, master: Display, pos: Position, piece_imgs: dict[PieceTypeColor, SvgImage]
-    ):
+    STATE_BG_BASE = {
+        State.SELECTED: THEME.ACTIVE_BG,
+        State.KING_CHECK: THEME.VALID_CAPTURE,
+        State.CAPTURABLE: THEME.VALID_CAPTURE,
+    }
+    STATE_BG_LIGHT = STATE_BG_BASE | {
+        State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT,
+        State.DEFAULT: THEME.LIGHT_TILES,
+    }
+    STATE_BG_DARK = STATE_BG_BASE | {
+        State.MOVABLE: THEME.VALID_HIGHLIGHT_DARK,
+        State.DEFAULT: THEME.DARK_TILES,
+    }
+
+    def __init__(self, display: Display, pos: Position):
         super().__init__(
-            master,
+            display,
             activebackground=THEME.ACTIVE_BG,
             bd=0,
             height=SIZE.TILE,
             width=SIZE.TILE,
         )
-        self.state_bg_dict = {
-            State.KING_CHECK: THEME.VALID_CAPTURE,
-            State.CAPTURABLE: THEME.VALID_CAPTURE,
-            State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT
-            if light_tile(pos)
-            else THEME.VALID_HIGHLIGHT_DARK,
-            State.SELECTED: THEME.ACTIVE_BG,
-            State.DEFAULT: THEME.LIGHT_TILES if light_tile(pos) else THEME.DARK_TILES,
-        }
-        self.PIECE_IMGS = piece_imgs
+        self.STATE_BG = self.STATE_BG_LIGHT if light_tile(pos) else self.STATE_BG_DARK
+        self.PIECE_IMGS: dict[PieceTypeColor, SvgImage] = display.PIECE_IMGS
         self.piece_type_color = Empty, Color.NONE
         self.state = State.DEFAULT
 
@@ -73,7 +77,7 @@ class CachedBtn(Button):
     @state.setter
     def state(self, new_state: State):
         self._state = new_state
-        self["bg"] = self.state_bg_dict[new_state]
+        self["bg"] = self.STATE_BG[new_state]
 
     @state.deleter
     def state(self):
@@ -81,7 +85,7 @@ class CachedBtn(Button):
             self.state = State.DEFAULT
 
 
-class Display(UserDict[Position, CachedBtn], Tk):
+class Display(Tk, UserDict[Position, CachedBtn]):
     def __init__(self) -> None:
         Tk.__init__(self)
         UserDict.__init__(self)
@@ -93,17 +97,17 @@ class Display(UserDict[Position, CachedBtn], Tk):
             for PieceType, color in FEN_MAP.values()
         }
         self.setup_buttons()
-        
+
     def __getitem__(self, pos: Position) -> CachedBtn:
         return UserDict.__getitem__(self, pos)
-    
+
     def __setitem__(self, pos: Position, btn: CachedBtn) -> None:
         UserDict.__setitem__(self, pos, btn)
-        btn.grid(row=pos[0], column=pos[1])
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
-            self[pos] = CachedBtn(self, pos, self.PIECE_IMGS)
+            self[pos] = (btn:=CachedBtn(self, pos))
+            btn.grid(row=pos[0], column=pos[1])
 
 
 class Root(Display):
@@ -121,7 +125,7 @@ class Root(Display):
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
         self.bind("<q>", lambda e: self.reset())
-        
+
     def __post_init__(self):
         ...
 
