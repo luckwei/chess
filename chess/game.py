@@ -7,7 +7,6 @@ from dataclasses import InitVar, dataclass, field
 from enum import Enum, StrEnum, auto
 from itertools import product
 from random import choice
-from tkinter.messagebox import showinfo
 from typing import Self, Type
 
 import numpy as np
