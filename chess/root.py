@@ -1,4 +1,6 @@
 from __future__ import annotations
+from collections import UserDict
+from dataclasses import dataclass, field
 
 from enum import Enum, auto
 from itertools import product
@@ -79,9 +81,10 @@ class CachedBtn(Button):
             self.state = State.DEFAULT
 
 
-class Display(Tk):
+class Display(UserDict[Position, CachedBtn], Tk):
     def __init__(self) -> None:
-        super().__init__()
+        Tk.__init__(self)
+        UserDict.__init__(self)
         self.PIECE_IMGS: dict[PieceTypeColor, SvgImage] = {
             (PieceType, color): SvgImage(
                 file=f"res/{PieceType.__name__}_{color}.svg",
@@ -89,52 +92,59 @@ class Display(Tk):
             )
             for PieceType, color in FEN_MAP.values()
         }
-        self.btns: dict[Position, CachedBtn] = {}
         self.setup_buttons()
+        
+    def __getitem__(self, pos: Position) -> CachedBtn:
+        return UserDict.__getitem__(self, pos)
+    
+    def __setitem__(self, pos: Position, btn: CachedBtn) -> None:
+        UserDict.__setitem__(self, pos, btn)
+        btn.grid(row=pos[0], column=pos[1])
 
     def setup_buttons(self):
         for pos in product(range(8), range(8)):
-            self.btns[pos] = (btn := CachedBtn(self, pos, self.PIECE_IMGS))
-            btn.grid(row=pos[0], column=pos[1])
+            self[pos] = CachedBtn(self, pos, self.PIECE_IMGS)
 
 
 class Root(Display):
+    # board: Board = field(init=False, default_factory=Board)
     def __init__(self):
         super().__init__()
         self.title("CHESS")
         self.iconbitmap("res/chess.ico")
 
+        self.selected: Position | None = None
         self.board = Board()
         self.refresh_pieces()
-        self.selected: Position | None = None
-
         self.bind_buttons()
 
         # Bind event logic
         self.bind("<Escape>", lambda e: self.quit())
         self.bind("<q>", lambda e: self.reset())
+        
+    def __post_init__(self):
+        ...
 
     def reset(self) -> None:
-        for btn in self.btns.values():
+        for btn in self.values():
             del btn.state
         self.board.set_from_fen(random=True)
         self.refresh_pieces()
 
     def refresh_pieces(self) -> None:
-        btns = self.btns
         for pos, piece in self.board.items():
-            if btns[pos].piece_type_color != piece.type_color:
-                btns[pos].piece_type_color = piece.type_color
+            if self[pos].piece_type_color != piece.type_color:
+                self[pos].piece_type_color = piece.type_color
 
     def execute_move_root(self, pos: Position, move: Move) -> None:
         board = self.board
         color = board.color_move
-        del self.btns[board.find_king()].state
+        del self[board.find_king()].state
         board.execute_move(pos, move)
         self.refresh_pieces()
 
         if board.checked:
-            self.btns[board.find_king()].state = State.KING_CHECK
+            self[board.find_king()].state = State.KING_CHECK
             if board.checkmated:
                 print("CHECKMATE!")
                 showinfo("Game ended!", f"CHECKMATE: {color.upper()} WINS!")
@@ -148,12 +158,10 @@ class Root(Display):
             return
 
     def bind_buttons(self):
-
-        btns = self.btns
         board = self.board
 
         def __bind_factory(pos: Position):
-            btn = btns[pos]
+            btn = self[pos]
 
             def on_click(e: Event) -> None:
                 selected = self.selected
@@ -164,9 +172,9 @@ class Root(Display):
                     self.selected = None  # Consume selection
 
                     # Contiguous reset
-                    del btns[selected].state
+                    del self[selected].state
                     for move in all_moves[selected]:
-                        del btns[move].state
+                        del self[move].state
                     # Check all moves
                     for move in all_moves[selected]:
                         if pos == selected:
@@ -178,13 +186,13 @@ class Root(Display):
                 # No selected move previously, also an unmovable tile
 
                 if board.checked:
-                    btns[board.find_king()].state = State.KING_CHECK
+                    self[board.find_king()].state = State.KING_CHECK
                 if pos not in all_moves:
                     return
 
                 # Tile is valid, so select it
                 for move in all_moves[pos]:
-                    btns[move].state = (
+                    self[move].state = (
                         State.CAPTURABLE if board[move] else State.MOVABLE
                     )
 
@@ -200,7 +208,7 @@ class Root(Display):
                 btn.state = State.SELECTED
 
                 for move in all_moves[pos]:
-                    btns[move].state = (
+                    self[move].state = (
                         State.CAPTURABLE if board[move] else State.MOVABLE
                     )
 
@@ -209,15 +217,15 @@ class Root(Display):
                     return
 
                 if board.checked and pos == board.find_king():
-                    btns[pos].state = State.KING_CHECK
+                    self[pos].state = State.KING_CHECK
                 else:
                     del btn.state
                 for move in board.all_moves[pos]:
-                    del btns[move].state
+                    del self[move].state
 
             return on_click, on_enter, on_exit
 
-        for pos, btn in btns.items():
+        for pos, btn in self.items():
             on_click, on_enter, on_exit = __bind_factory(pos)
             btn.bind("<ButtonRelease-1>", on_click)
             btn.bind("<Enter>", on_enter)
