@@ -10,14 +10,14 @@ from tkinter.messagebox import showinfo
 from tksvg import SvgImage
 
 from .constants import SIZE, THEME
-from .game import FEN_MAP, Board, Color, Empty, Move, PieceTypeColor
+from .game import FEN_MAP, Board, Color, Empty, Move, Piece, PieceTypeColor
 from .types import Position
 
 
 class State(Enum):
     DEFAULT = auto()
-    CAPTURABLE = auto()
-    MOVABLE = auto()
+    CAPTURE = auto()
+    MOVE = auto()
     SELECTED = auto()
     KING_CHECK = auto()
 
@@ -25,14 +25,14 @@ class State(Enum):
 STATE_BG_BASE = {
     State.SELECTED: THEME.ACTIVE_BG,
     State.KING_CHECK: THEME.VALID_CAPTURE,
-    State.CAPTURABLE: THEME.VALID_CAPTURE,
+    State.CAPTURE: THEME.VALID_CAPTURE,
 }
 STATE_BG_LIGHT = STATE_BG_BASE | {
-    State.MOVABLE: THEME.VALID_HIGHLIGHT_LIGHT,
+    State.MOVE: THEME.VALID_HIGHLIGHT_LIGHT,
     State.DEFAULT: THEME.LIGHT_TILES,
 }
 STATE_BG_DARK = STATE_BG_BASE | {
-    State.MOVABLE: THEME.VALID_HIGHLIGHT_DARK,
+    State.MOVE: THEME.VALID_HIGHLIGHT_DARK,
     State.DEFAULT: THEME.DARK_TILES,
 }
 
@@ -41,9 +41,11 @@ STATE_BG_DARK = STATE_BG_BASE | {
 class CachedBtn(Button):
     display: InitVar[Display]
     pos: InitVar[Position]
-    PIECE_IMGS: dict[PieceTypeColor, SvgImage] = field(init=False)
+
+    PIECE_IMGS: dict[Piece, SvgImage] = field(init=False)
     STATE_BG: dict[State, THEME] = field(init=False)
-    _piece_type_color: PieceTypeColor = field(init=False)
+
+    _piece: Piece = field(init=False)
     _state: State = field(init=False)
 
     def __post_init__(self, display: Display, pos: Position):
@@ -58,22 +60,24 @@ class CachedBtn(Button):
         self.PIECE_IMGS = display.PIECE_IMGS
         self.STATE_BG = STATE_BG_LIGHT if sum(pos) % 2 == 0 else STATE_BG_DARK
 
-        self.piece_type_color = Empty, Color.NONE
+        self.piece = Empty()
         self.state = State.DEFAULT
 
+        self.grid(row=pos[0], column=pos[1])
+
     @property
-    def piece_type_color(self) -> PieceTypeColor:
-        return self._piece_type_color
+    def piece(self) -> Piece:
+        return self._piece
 
-    @piece_type_color.setter
-    def piece_type_color(self, new_type_color: PieceTypeColor):
-        self._piece_type_color = new_type_color
-        self["image"] = self.PIECE_IMGS[new_type_color]
+    @piece.setter
+    def piece(self, new_piece: Piece):
+        if not hasattr(self, "_piece") or self._piece != new_piece:
+            self._piece = new_piece
+            self["image"] = self.PIECE_IMGS[new_piece]
 
-    @piece_type_color.deleter
-    def piece_type_color(self):
-        if self.piece_type_color != (Empty, Color.NONE):
-            self.piece_type_color = Empty, Color.NONE
+    @piece.deleter
+    def piece(self):
+        self.piece = Empty()
 
     @property
     def state(self) -> State:
@@ -81,13 +85,13 @@ class CachedBtn(Button):
 
     @state.setter
     def state(self, new_state: State):
-        self._state = new_state
-        self["bg"] = self.STATE_BG[new_state]
+        if not hasattr(self, "_state") or self._state != new_state:
+            self._state = new_state
+            self["bg"] = self.STATE_BG[new_state]
 
     @state.deleter
     def state(self):
-        if self.state != State.DEFAULT:
-            self.state = State.DEFAULT
+        self.state = State.DEFAULT
 
 
 # Ordered to prioritise getitem, setitem of UserDict
@@ -97,19 +101,15 @@ class Display(UserDict[Position, CachedBtn], Tk):
     def __init__(self) -> None:
         Tk.__init__(self)
         UserDict.__init__(self)
-        self.PIECE_IMGS: dict[PieceTypeColor, SvgImage] = {
-            (PieceType, color): SvgImage(
-                file=f"res/{PieceType.__name__}_{color}.svg",
+        self.PIECE_IMGS: dict[Piece, SvgImage] = {
+            piece: SvgImage(
+                file=f"res/{type(piece).__name__}_{piece.color}.svg",
                 scaletowidth=SIZE.PIECE,
             )
-            for PieceType, color in FEN_MAP.values()
+            for piece in FEN_MAP.values()
         }
-        self.setup_buttons()
-
-    def setup_buttons(self):
         for pos in product(range(8), range(8)):
-            self[pos] = (btn := CachedBtn(self, pos))
-            btn.grid(row=pos[0], column=pos[1])
+            self[pos] = CachedBtn(self, pos)
 
 
 class Root(Display):
@@ -132,13 +132,13 @@ class Root(Display):
     def reset(self) -> None:
         for btn in self.values():
             del btn.state
-        self.board.set_from_fen(random=True)
+        self.board.set_fen(random=True)
         self.refresh_pieces()
 
+    # Make piece a property of btn
     def refresh_pieces(self) -> None:
         for pos, piece in self.board.items():
-            if self[pos].piece_type_color != piece.type_color:
-                self[pos].piece_type_color = piece.type_color
+            self[pos].piece = piece
 
     def execute_move_root(self, pos: Position, move: Move) -> None:
         board = self.board
@@ -159,12 +159,11 @@ class Root(Display):
         if board.stalemated:
             print("STALEMATE!")
             showinfo("Game ended!", f"STALEMATE: DRAW!")
-            return
 
     def bind_buttons(self):
         board = self.board
 
-        def __bind_factory(pos: Position):
+        def bind_factory(pos: Position):
             btn = self[pos]
 
             def on_click(e: Event) -> None:
@@ -196,9 +195,7 @@ class Root(Display):
 
                 # Tile is valid, so select it
                 for move in all_moves[pos]:
-                    self[move].state = (
-                        State.CAPTURABLE if board[move] else State.MOVABLE
-                    )
+                    self[move].state = State.CAPTURE if board[move] else State.MOVE
 
                 btn.state = State.SELECTED
                 self.selected = pos
@@ -212,9 +209,7 @@ class Root(Display):
                 btn.state = State.SELECTED
 
                 for move in all_moves[pos]:
-                    self[move].state = (
-                        State.CAPTURABLE if board[move] else State.MOVABLE
-                    )
+                    self[move].state = State.CAPTURE if board[move] else State.MOVE
 
             def on_exit(e: Event) -> None:
                 if self.selected or pos not in board.all_moves:
@@ -230,7 +225,7 @@ class Root(Display):
             return on_click, on_enter, on_exit
 
         for pos, btn in self.items():
-            on_click, on_enter, on_exit = __bind_factory(pos)
+            on_click, on_enter, on_exit = bind_factory(pos)
             btn.bind("<ButtonRelease-1>", on_click)
             btn.bind("<Enter>", on_enter)
             btn.bind("<Leave>", on_exit)
