@@ -311,9 +311,9 @@ class Move(Position):
 
     def __add__(self, other: Position):
         return Move((self[0] + other[0], self[1] + other[1]), self.flag)
-
-    def __sub__(self, other: Position):
-        return Move((self[0] - other[0], self[1] - other[1]), self.flag)
+    
+    def __radd__(self, other: Position):
+        return self.__add__(other)
 
 
 def in_bounds(pos: Position) -> bool:
