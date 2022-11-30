@@ -37,18 +37,13 @@ class Color(StrEnum):
 
 
 # Chess Pieces and it's subclass
-@dataclass
+@dataclass(slots=True, frozen=True)
 class Piece(ABC):
     color: Color
 
-    @classmethod
-    @property
-    def type(cls) -> Type[Piece]:
-        return cls
-
     @property
     def type_color(self) -> PieceTypeColor:
-        return self.type, self.color
+        return type(self), self.color
 
     @property
     def dir(self) -> int:
@@ -68,10 +63,9 @@ class Piece(ABC):
 
 PieceTypeColor = tuple[Type[Piece], Color]
 
-
-@dataclass
 class Empty(Piece):
-    color: Color = Color.NONE
+    def __init__(self, *_):
+        super().__init__(Color.NONE)
 
     def __bool__(self):
         return False
@@ -80,7 +74,6 @@ class Empty(Piece):
         return []
 
 
-@dataclass
 class Pawn(Piece):
     def get_moves(
         self,
@@ -90,8 +83,7 @@ class Pawn(Piece):
         enpassant_target: Position | None,
         **kwargs,
     ) -> list[Move]:
-        color = self.color
-        dir = color.dir
+        color, dir = self.color, self.dir
         pos_x, pos_y = pos
 
         all_moves = []
@@ -133,7 +125,6 @@ class Pawn(Piece):
         ]
 
 
-@dataclass
 class Rook(Piece):
     def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
         color = self.color
@@ -144,21 +135,18 @@ class Rook(Piece):
         ]
 
 
-@dataclass
 class Knight(Piece):
     def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
         color = self.color
         return [m for m in l_moves(pos) if final_checks(m, pos, board, color)]
 
 
-@dataclass
 class Bishop(Piece):
     def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
         color = self.color
         return [m for m in diag_moves(pos) if final_checks(m, pos, board, color)]
 
 
-@dataclass
 class Queen(Piece):
     def get_moves(self, board: Board, pos: Position, **kwargs) -> list[Move]:
         color = self.color
@@ -169,7 +157,6 @@ class Queen(Piece):
         ]
 
 
-@dataclass
 class King(Piece):
     def get_moves(
         self, board: Board, pos: Position, /, castling_flags: CastlingFlags, **kwargs
@@ -241,6 +228,7 @@ class Flag(Enum):
 
 
 class CastlingFlags(UserDict[tuple[Color, Flag], bool]):
+    __slots__ = ("data",)
     FEN_CASTLING_DICT = {
         (Color.WHITE, Flag.CASTLE_KSIDE): "K",
         (Color.WHITE, Flag.CASTLE_QSIDE): "Q",
@@ -267,13 +255,13 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
     pos_x, pos_y = pos
 
     if any(
-        board[m].type == Knight and board[m].color == enemy_color for m in l_moves(pos)
+        type(board[m]) == Knight and board[m].color == enemy_color for m in l_moves(pos)
     ):
         return False
 
     # check perpendiculars
     if any(
-        board[m].type in (Queen, Rook)
+        type(board[m]) in (Queen, Rook)
         and board[m].color == enemy_color
         and no_obstruction(board, pos, m)
         for m in perp_moves(pos)
@@ -282,7 +270,7 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
 
     # check diagonals
     if any(
-        board[m].type in (Queen, Bishop)
+        type(board[m]) in (Queen, Bishop)
         and board[m].color == enemy_color
         and no_obstruction(board, pos, m)
         for m in diag_moves(pos)
@@ -291,14 +279,14 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
 
     # check adjacent for king
     if any(
-        board[m].type == King and board[m].color == enemy_color
+        type(board[m]) == King and board[m].color == enemy_color
         for m in [*perp_moves(pos, 1), *diag_moves(pos, 1)]
     ):
         return False
 
     # check pincer for pawn
     return not any(
-        in_bounds(m) and board[m].type == Pawn and board[m].color == enemy_color
+        in_bounds(m) and type(board[m]) == Pawn and board[m].color == enemy_color
         for m in [
             (pos_x + color.dir, pos_y + 1),
             (pos_x + color.dir, pos_y - 1),
@@ -410,7 +398,7 @@ def l_moves(pos: Position) -> filter[Move]:
     return filter(in_bounds, moves)
 
 
-@dataclass
+@dataclass(slots=True)
 class Board(UserDict[Position, Piece]):
     fen_string: InitVar[str | None] = Setup.START
 
@@ -469,7 +457,7 @@ class Board(UserDict[Position, Piece]):
         return next(
             pos
             for pos, piece in self.items()
-            if piece.color == color and piece.type == King
+            if piece.color == color and type(piece) == King
         )
 
     def toggle_color_move(self) -> None:

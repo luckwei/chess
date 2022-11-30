@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import UserDict
+from dataclasses import InitVar, dataclass, field
 from enum import Enum, auto
 from itertools import product
 from tkinter import Button, Event, Tk
@@ -36,9 +37,18 @@ STATE_BG_DARK = STATE_BG_BASE | {
 }
 
 
+@dataclass(slots=True)
 class CachedBtn(Button):
-    def __init__(self, display: Display, pos: Position):
-        super().__init__(
+    display: InitVar[Display]
+    pos: InitVar[Position]
+    PIECE_IMGS: dict[PieceTypeColor, SvgImage] = field(init=False)
+    STATE_BG: dict[State, THEME] = field(init=False)
+    _piece_type_color: PieceTypeColor = field(init=False)
+    _state: State = field(init=False)
+
+    def __post_init__(self, display: Display, pos: Position):
+        Button.__init__(
+            self,
             display,
             activebackground=THEME.ACTIVE_BG,
             bd=0,
@@ -82,6 +92,8 @@ class CachedBtn(Button):
 
 # Ordered to prioritise getitem, setitem of UserDict
 class Display(UserDict[Position, CachedBtn], Tk):
+    __slots__ = ("PIECE_IMGS",)
+
     def __init__(self) -> None:
         Tk.__init__(self)
         UserDict.__init__(self)
@@ -101,7 +113,8 @@ class Display(UserDict[Position, CachedBtn], Tk):
 
 
 class Root(Display):
-    # board: Board = field(init=False, default_factory=Board)
+    __slots__ = ("selected", "board")
+
     def __init__(self):
         super().__init__()
         self.title("CHESS")
