@@ -5,9 +5,9 @@ from collections import UserDict
 from copy import deepcopy
 from dataclasses import InitVar, dataclass, field
 from enum import Enum, StrEnum, auto
-from itertools import product
+from itertools import chain, product
 from random import choice
-from typing import Self, Type
+from typing import Iterable, Self, Type
 
 import numpy as np
 
@@ -68,42 +68,37 @@ class Pawn(Piece):
     def moves(self, board: Board, pos: Position) -> list[Move]:
         color = self.color
         dir = color.dir
-        pos_x, pos_y = pos
         enpassant_trgt = board.enpassant_trgt
+        enemy_br = color.other.back_rank
 
         all_moves = []
 
         # Enpassant
         all_moves.extend(
-            Move(m, Flag.ENPASSANT)
-            for m in [(pos_x + dir, pos_y + 1), (pos_x + dir, pos_y - 1)]
-            if enpassant_trgt == (pos_x, m[1])
+            to
+            for d in [(dir, 1), (dir, -1)]
+            if enpassant_trgt == (pos[0], (to := Move(pos, Flag.ENPASSANT) + d)[1])
         )
 
         # Pincer
         all_moves.extend(
-            Move(m, Flag.PROMOTION if m[0] == color.other.back_rank else Flag.NONE)
-            for m in [(pos_x + dir, pos_y + 1), (pos_x + dir, pos_y - 1)]
-            if in_bounds(m) and board[m].color == color.other
+            Move(to, Flag.PROMOTION if to[0] == enemy_br else Flag.NONE)
+            for d in [(dir, 1), (dir, -1)]
+            if in_bounds(to := Move(pos) + d) and board[to].color == color.other
         )
 
         # Front long
-        if (
-            pos_x == (pawn_rank := 6 if color == Color.WHITE else 1)
-            and not board[(front_long := (pawn_rank + 2 * dir, pos_y))]
-        ):
-            all_moves.append(Move(front_long, Flag.ENPASSANT_TRGT))
+        front_long = Move(pos, Flag.ENPASSANT_TRGT) + (2 * dir, 0)
+        if pos[0] == 6 if color == Color.WHITE else 1 and not board[front_long]:
+            all_moves.append(front_long)
 
         # Front short
-        if not board[(front_short := (pos_x + dir, pos_y))]:
-            all_moves.append(
-                Move(
-                    front_short,
-                    Flag.PROMOTION
-                    if front_short[0] == color.other.back_rank
-                    else Flag.NONE,
-                )
-            )
+        front_short = Move(
+            to := Move(pos) + (dir, 0),
+            Flag.PROMOTION if to[0] == color.other.back_rank else Flag.NONE,
+        )
+        if not board[front_short]:
+            all_moves.append(front_short)
 
         return [m for m in all_moves if final_checks(m, pos, board)]
 
@@ -124,53 +119,45 @@ class Knight(Piece):
 
 class Bishop(Piece):
     def moves(self, board: Board, pos: Position) -> list[Move]:
-        color = self.color
         return [m for m in diag_m(pos) if final_checks(m, pos, board)]
 
 
 class Queen(Piece):
     def moves(self, board: Board, pos: Position) -> list[Move]:
-        color = self.color
-        return [
-            m
-            for m in [*diag_m(pos), *perp_m(pos)]
-            if final_checks(m, pos, board)
-        ]
+        return [m for m in [*diag_m(pos), *perp_m(pos)] if final_checks(m, pos, board)]
 
 
 class King(Piece):
     def moves(self, board: Board, pos: Position) -> list[Move]:
         color = self.color
+        back_rank = color.back_rank
         castling_perm = board.castling_perm
-        pos_x, pos_y = pos
 
         all_moves = []
 
         king_not_checked = not board.checked
-        back_rank = color.back_rank
 
         # King-side castle
         if (
             castling_perm[color, Flag.CASTLE_KSIDE]
             and king_not_checked
-            and kingcheck_safe(board, (back_rank, 5), color)
-            and not any(board[(back_rank, col)] for col in [5, 6])
+            and kingcheck_safe(board, (back_rank, 5))
+            and not any(board[back_rank, col] for col in [5, 6])
         ):
-            all_moves.append(Move((pos_x, pos_y + 2), Flag.CASTLE_KSIDE))
+            all_moves.append(Move(pos, Flag.CASTLE_KSIDE) + (0, 2))
 
         # Queen-side castle
         if (
             castling_perm[color, Flag.CASTLE_QSIDE]
             and king_not_checked
-            and kingcheck_safe(board, (back_rank, 3), color)
-            and not any(board[(back_rank, col)] for col in [1, 2, 3])
+            and kingcheck_safe(board, (back_rank, 3))
+            and not any(board[back_rank, col] for col in [1, 2, 3])
         ):
-            all_moves.append(Move((pos_x, pos_y - 2), Flag.CASTLE_QSIDE))
+            all_moves.append(Move(pos, Flag.CASTLE_QSIDE) + (0, -2))
 
         # Normal moves
         all_moves.extend(
-            Move(m, Flag.LOSE_KING_PRIV)
-            for m in [*diag_m(pos, 1), *perp_m(pos, 1)]
+            Move(m, Flag.LOSE_KING_PRIV) for m in [*diag_m(pos, 1), *perp_m(pos, 1)]
         )
 
         return [m for m in all_moves if final_checks(m, pos, board)]
@@ -230,9 +217,10 @@ class CastlingPerm(UserDict[tuple[Color, Flag], bool]):
         self[color, flag] = False
 
 
-def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
+def kingcheck_safe(board: Board, pos: Position, color: Color | None = None) -> bool:
+    if color is None:
+        color = board.color_move
     enemy_color = color.other
-    pos_x, pos_y = pos
 
     if any(board[m] == Knight(enemy_color) for m in lshp_m(pos)):
         return False
@@ -254,19 +242,13 @@ def kingcheck_safe(board: Board, pos: Position, color: Color) -> bool:
         return False
 
     # check adjacent for king
-    if any(
-        board[m] == King(enemy_color)
-        for m in [*perp_m(pos, 1), *diag_m(pos, 1)]
-    ):
+    if any(board[m] == King(enemy_color) for m in [*perp_m(pos, 1), *diag_m(pos, 1)]):
         return False
 
     # check pincer for pawn
     return not any(
-        in_bounds(m) and board[m] == Pawn(enemy_color)
-        for m in [
-            (pos_x + color.dir, pos_y + 1),
-            (pos_x + color.dir, pos_y - 1),
-        ]
+        in_bounds(m := Move(pos) + d) and board[m] == Pawn(enemy_color)
+        for d in [(color.dir, 1), (color.dir, -1)]
     )
 
 
@@ -299,9 +281,6 @@ def final_checks(
     pos: Position,
     board: Board,
 ) -> bool:
-    # enpassant_trgt = board.enpassant_trgt
-    # color = board.color_move
-
     # From pos is color
     if board[pos].color != board.color_move:
         return False
@@ -322,71 +301,49 @@ def final_checks(
 
     return not end_game.checked
 
-class Delta(Position):
-    def __new__(cls, x, y) -> Self:
-        return tuple.__new__(cls, (x, y))
-
-    def __add__(self, other: Position):
-        return self[0] + other[0], self[1] + other[1]
-
-    def __radd__(self, other: Position):
-        return self.__add__(other)
-    
-    def __sub__(self, other: Position):
-        return self[0] - other[0], self[1] - other[1]
-    
-    def __rsub__(self, other: Position):
-        return other[0] - self[0], other[1] - other[0]
-    
-class Move(Delta):
+class Move(Position):
     flag: Flag
 
     def __new__(cls, pos: Position, flag=Flag.NONE) -> Self:
-        self = tuple.__new__(cls, pos)
+        self = super().__new__(cls, pos)
         setattr(self, "flag", flag)
         return self
+
+    def __add__(self, other: Position):
+        return Move((self[0] + other[0], self[1] + other[1]), self.flag)
+
+    def __sub__(self, other: Position):
+        return Move((self[0] - other[0], self[1] - other[1]), self.flag)
 
 
 def in_bounds(pos: Position) -> bool:
     return max(pos) <= 7 and min(pos) >= 0
 
 
-def diag_m(pos: Position, n=7) -> filter[Move]:
-    pos_x, pos_y = pos
+def diag_m(pos: Position, n=7) -> Iterable[Move]:
+    quads = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+    magnitude = zip((mag := range(1, n + 1)), mag)
+    deltas = (np.multiply(*qm) for qm in product(quads, magnitude))
 
-    moves = []
-    for i in range(1, n + 1):
-        NE = (pos_x + i, pos_y + i)
-        NW = (pos_x + i, pos_y - i)
-        SE = (pos_x - i, pos_y + i)
-        SW = (pos_x - i, pos_y - i)
-        moves.extend(Move(m) for m in [NE, NW, SE, SW])
-    return filter(in_bounds, moves)
+    return (m for d in deltas if in_bounds(m := Move(pos)+tuple(d)))
 
 
-def perp_m(pos: Position, n=7) -> filter[Move]:
-    pos_x, pos_y = pos
+def perp_m(pos: Position, n=7) -> Iterable[Move]:
+    sides = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+    magnitude = zip((mag := range(1, n + 1)), mag)
 
-    moves = []
-    for i in range(1, n + 1):
-        N = (pos_x + i, pos_y)
-        S = (pos_x - i, pos_y)
-        E = (pos_x, pos_y + i)
-        W = (pos_x, pos_y - i)
-        moves.extend(Move(m) for m in [N, S, E, W])
-    return filter(in_bounds, moves)
+    deltas = (np.multiply(*sm) for sm in product(sides, magnitude))
+
+    return (m for d in deltas if in_bounds(m := Move(pos)+tuple(d)))
 
 
-def lshp_m(pos: Position) -> filter[Move]:
-    pos_x, pos_y = pos
-
-    moves = []
-    quadrant = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+def lshp_m(pos: Position) -> Iterable[Move]:
+    quads = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = [(1, 2), (2, 1)]
-    for q, m in product(quadrant, magnitude):
-        x, y = np.multiply(q, m)
-        moves.append(Move((pos_x + x, pos_y + y)))
-    return filter(in_bounds, moves)
+
+    deltas = (np.multiply(*qm) for qm in product(quads, magnitude))
+
+    return (m for d in deltas if in_bounds(m := Move(pos)+tuple(d)))
 
 
 @dataclass(slots=True)
