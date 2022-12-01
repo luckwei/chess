@@ -14,6 +14,14 @@ import numpy as np
 from .setup import Setup
 from .types import Position
 
+def ib(pos):
+    return max(pos) <= 7 and min(pos) >= 0
+
+def in_bounds(func):
+    def filtered(*args):
+        return (m for m in func(*args) if ib(m))
+
+    return filtered
 
 class Color(StrEnum):
     NONE = auto()
@@ -22,13 +30,13 @@ class Color(StrEnum):
 
     @property
     def dir(self) -> int:
-        return {self.WHITE: -1, self.BLACK: 1}.get(self, 0)
+        return {Color.WHITE: -1, Color.BLACK: 1}.get(self, 0)
 
     @property
     def other(self) -> Self:
         return {
-            self.WHITE: self.BLACK,
-            self.BLACK: self.WHITE,
+            Color.WHITE: Color.BLACK,
+            Color.BLACK: Color.WHITE,
         }.get(self, self.NONE)
 
     @property
@@ -50,7 +58,7 @@ class Piece(ABC):
         ...
 
 
-PieceTypeColor = tuple[Type[Piece], Color]
+# PieceTypeColor = tuple[Type[Piece], Color]
 
 
 class Empty(Piece):
@@ -80,11 +88,12 @@ class Pawn(Piece):
             if enpassant_trgt == (pos[0], (to := Move(pos, Flag.ENPASSANT) + d)[1])
         )
 
+        
         # Pincer
         all_moves.extend(
             Move(to, Flag.PROMOTION if to[0] == enemy_br else Flag.NONE)
             for d in [(dir, 1), (dir, -1)]
-            if in_bounds(to := Move(pos) + d) and board[to].color == color.other
+            if ib(to := Move(pos) + d) and board[to].color == color.other
         )
 
         # Front long
@@ -247,7 +256,7 @@ def kingcheck_safe(board: Board, pos: Position, color: Color | None = None) -> b
 
     # check pincer for pawn
     return not any(
-        in_bounds(m := Move(pos) + d) and board[m] == Pawn(enemy_color)
+        ib(m := Move(pos) + d) and board[m] == Pawn(enemy_color)
         for d in [(color.dir, 1), (color.dir, -1)]
     )
 
@@ -301,6 +310,7 @@ def final_checks(
 
     return not end_game.checked
 
+
 class Move(Position):
     flag: Flag
 
@@ -311,39 +321,39 @@ class Move(Position):
 
     def __add__(self, other: Position):
         return Move((self[0] + other[0], self[1] + other[1]), self.flag)
-    
+
     def __radd__(self, other: Position):
         return self.__add__(other)
 
 
-def in_bounds(pos: Position) -> bool:
-    return max(pos) <= 7 and min(pos) >= 0
 
 
+
+@in_bounds
 def diag_m(pos: Position, n=7) -> Iterable[Move]:
     quads = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = zip((mag := range(1, n + 1)), mag)
     deltas = (np.multiply(*qm) for qm in product(quads, magnitude))
 
-    return (m for d in deltas if in_bounds(m := Move(pos)+tuple(d)))
+    return (Move(pos) + tuple(d) for d in deltas)
 
 
+@in_bounds
 def perp_m(pos: Position, n=7) -> Iterable[Move]:
     sides = [(0, 1), (1, 0), (0, -1), (-1, 0)]
     magnitude = zip((mag := range(1, n + 1)), mag)
-
     deltas = (np.multiply(*sm) for sm in product(sides, magnitude))
 
-    return (m for d in deltas if in_bounds(m := Move(pos)+tuple(d)))
+    return (Move(pos) + tuple(d) for d in deltas)
 
 
+@in_bounds
 def lshp_m(pos: Position) -> Iterable[Move]:
     quads = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = [(1, 2), (2, 1)]
-
     deltas = (np.multiply(*qm) for qm in product(quads, magnitude))
 
-    return (m for d in deltas if in_bounds(m := Move(pos)+tuple(d)))
+    return (Move(pos) + tuple(d) for d in deltas)
 
 
 @dataclass(slots=True)
