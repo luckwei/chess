@@ -10,7 +10,7 @@ from tkinter.messagebox import showinfo
 from tksvg import SvgImage
 
 from .constants import SIZE, THEME
-from .game import FEN_MAP, Board, Color, Empty, Move, Piece, PieceTypeColor
+from .game import FEN_MAP, Board, Empty, Move, Piece
 from .types import Position
 
 
