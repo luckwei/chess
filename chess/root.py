@@ -165,7 +165,7 @@ class Root(Display):
 
         def on_click(e: Event, pos: Position) -> None:
             selected = self.selected
-            all_moves = board.all_moves
+            all_moves = board.all_moves_cache
 
             # There was a selected move previously
             if selected:
@@ -198,7 +198,7 @@ class Root(Display):
             self.selected = pos
 
         def on_enter(e: Event, pos: Position) -> None:
-            all_moves = board.all_moves
+            all_moves = board.all_moves_cache
 
             if self.selected or pos not in all_moves:
                 return
@@ -209,14 +209,14 @@ class Root(Display):
                 self[move].state = State.CAPTURE if board[move] else State.MOVE
 
         def on_exit(e: Event, pos: Position) -> None:
-            if self.selected or pos not in board.all_moves:
+            if self.selected or pos not in board.all_moves_cache:
                 return
 
             if board.checked and pos == board.find_king():
                 self[pos].state = State.KING_CHECK
             else:
                 del self[pos].state
-            for move in board.all_moves[pos]:
+            for move in board.all_moves_cache[pos]:
                 del self[move].state
 
         for pos, btn in self.items():

@@ -362,7 +362,7 @@ class Board(UserDict[Position, Piece]):
     color_move: Color = field(init=False)
     castling_perm: CastlingPerm = field(init=False)
     enpassant_trgt: Position | None = field(init=False)
-    all_moves: dict[Position, list[Move]] = field(init=False)
+    all_moves_cache: dict[Position, list[Move]] = field(init=False)
 
     def __post_init__(self, fen_string):
         self.set_fen(fen_string)
@@ -420,16 +420,16 @@ class Board(UserDict[Position, Piece]):
 
     @property
     def checkmated(self) -> bool:
-        return not self.all_moves and self.checked
+        return not self.all_moves_cache and self.checked
 
     @property
     def stalemated(self, color: Color | None = None) -> bool:
-        return not self.all_moves and not self.checked
+        return not self.all_moves_cache and not self.checked
 
     def recompute_all_moves(self, color: Color | None = None) -> None:
         color = self.color_move if color is None else color
 
-        self.all_moves = {
+        self.all_moves_cache = {
             pos: moves
             for pos, piece in self.items()
             if piece.color == color and (moves := piece.moves(self, pos))
