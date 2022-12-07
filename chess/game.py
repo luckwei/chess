@@ -15,6 +15,7 @@ from .setup import Setup
 
 Position = tuple[int, int]
 
+
 def ib(pos: Position):
     return max(pos) <= 7 and min(pos) >= 0
 
@@ -51,10 +52,6 @@ class Color(StrEnum):
 @dataclass(slots=True, frozen=True, eq=True)
 class Piece(ABC):
     color: Color
-    _type: Type[Piece] = field(init=False)
-
-    def __post_init__(self):
-        object.__setattr__(self, "_type", type(self))
 
     @abstractmethod
     def moves(self, board: Board, pos: Position) -> list[Move]:
@@ -63,6 +60,7 @@ class Piece(ABC):
 
 # PieceTypeColor = tuple[Type[Piece], Color]
 
+
 class Empty(Piece):
     def __init__(self, *_):
         super().__init__(Color.NONE)
@@ -70,7 +68,7 @@ class Empty(Piece):
     def __bool__(self):
         return False
 
-    def moves(self, *args, **kwargs) -> list[Move]:
+    def moves(self, board: Board, pos: Position) -> list[Move]:
         return []
 
 
@@ -325,7 +323,7 @@ class Move(Position):
 
     def __radd__(self, other: Position):
         return self.__add__(other)
-    
+
     def delta(self, delta: Position) -> Self:
         return Move((self[0] + delta[0], self[1] + delta[1]), self.flag)
 
