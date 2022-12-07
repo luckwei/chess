@@ -414,9 +414,6 @@ class Board(UserDict[Position, Piece]):
             if piece.color == color and type(piece) == King
         )
 
-    def toggle_color_move(self) -> None:
-        self.color_move = self.color_move.other
-
     @property
     def checked(self) -> bool:
         return not kingcheck_safe(
@@ -479,5 +476,5 @@ class Board(UserDict[Position, Piece]):
         if flag == Flag.PROMOTION:
             self[move] = Queen(color)
 
-        self.toggle_color_move()
+        self.color_move = self.color_move.other
         self.recompute_all_moves()
