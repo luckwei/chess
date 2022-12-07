@@ -427,13 +427,13 @@ class Board(UserDict[Position, Piece]):
         return not self.all_moves and not self.checked
 
     def recompute_all_moves(self, color: Color | None = None) -> None:
-        if color is None:
-            color = self.color_move
-        all_moves = {}
-        for pos, piece in self.items():
-            if piece.color == color and (moves := piece.moves(self, pos)):
-                all_moves[pos] = moves
-        self.all_moves = all_moves
+        color = self.color_move if color is None else color
+
+        self.all_moves = {
+            pos: moves
+            for pos, piece in self.items()
+            if piece.color == color and (moves := piece.moves(self, pos))
+        }
 
     def __delitem__(self, pos: Position) -> None:
         self[pos] = Empty()
