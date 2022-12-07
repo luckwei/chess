@@ -16,13 +16,13 @@ from .setup import Setup
 Position = tuple[int, int]
 
 
-def ib(pos: Position):
+def in_bounds(pos: Position):
     return max(pos) <= 7 and min(pos) >= 0
 
 
-def in_bounds(func: Callable[[Position], Iterable[Move]]):
+def in_bounds_filter(func: Callable[[Position], Iterable[Move]]):
     def filtered(pos: Position, *args):
-        return (m for m in func(pos, *args) if ib(m))
+        return (m for m in func(pos, *args) if in_bounds(m))
 
     return filtered
 
@@ -92,7 +92,7 @@ class Pawn(Piece):
         all_moves.extend(
             Move(to, Flag.PROMOTION if to[0] == enemy_br else Flag.NONE)
             for d in [(dir, 1), (dir, -1)]
-            if ib(to := Move(pos) + d) and board[to].color == color.other
+            if in_bounds(to := Move(pos) + d) and board[to].color == color.other
         )
 
         # Front long
@@ -255,7 +255,7 @@ def kingcheck_safe(board: Board, pos: Position, color: Color | None = None) -> b
 
     # check pincer for pawn
     return not any(
-        ib(m := Move(pos) + d) and board[m] == Pawn(enemy_color)
+        in_bounds(m := Move(pos) + d) and board[m] == Pawn(enemy_color)
         for d in [(color.dir, 1), (color.dir, -1)]
     )
 
@@ -328,7 +328,7 @@ class Move(Position):
         return Move((self[0] + delta[0], self[1] + delta[1]), self.flag)
 
 
-@in_bounds
+@in_bounds_filter
 def diag_m(pos: Position, n=7) -> Iterable[Move]:
     quads = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = zip((mag := range(1, n + 1)), mag)
@@ -337,7 +337,7 @@ def diag_m(pos: Position, n=7) -> Iterable[Move]:
     return (Move(pos) + tuple(d) for d in deltas)
 
 
-@in_bounds
+@in_bounds_filter
 def perp_m(pos: Position, n=7) -> Iterable[Move]:
     sides = [(0, 1), (1, 0), (0, -1), (-1, 0)]
     magnitude = zip((mag := range(1, n + 1)), mag)
@@ -346,7 +346,7 @@ def perp_m(pos: Position, n=7) -> Iterable[Move]:
     return (Move(pos) + tuple(d) for d in deltas)
 
 
-@in_bounds
+@in_bounds_filter
 def lshp_m(pos: Position) -> Iterable[Move]:
     quads = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = [(1, 2), (2, 1)]
