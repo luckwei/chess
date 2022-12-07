@@ -1,10 +1,12 @@
-import Tile from "./components/Tile";
-
+import Chessboard from "./components/Chessboard";
+import {Color} from "./gameLogic"
+const hi = Color.BLACK
 function App() {
   return (
     <main>
-      <h1>Hello World</h1>
-      <div className="chessboard">{Array(64).fill(<Tile />)}</div>
+      <h1>Chessboard</h1>
+      <h1>{Color.other(hi)}</h1>
+      <Chessboard/>
     </main>
   );
 }
