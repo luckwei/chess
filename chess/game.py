@@ -7,21 +7,24 @@ from dataclasses import InitVar, dataclass, field
 from enum import Enum, StrEnum, auto
 from itertools import chain, product
 from random import choice
-from typing import Iterable, Self, Type
+from typing import Callable, Iterable, Self, Type
 
 import numpy as np
 
 from .setup import Setup
 from .types import Position
 
-def ib(pos):
+
+def ib(pos: Position):
     return max(pos) <= 7 and min(pos) >= 0
 
-def in_bounds(func):
-    def filtered(*args):
-        return (m for m in func(*args) if ib(m))
+
+def in_bounds(func: Callable[[Position], Iterable[Move]]):
+    def filtered(pos: Position, *args):
+        return (m for m in func(pos, *args) if ib(m))
 
     return filtered
+
 
 class Color(StrEnum):
     NONE = auto()
@@ -60,7 +63,6 @@ class Piece(ABC):
 
 # PieceTypeColor = tuple[Type[Piece], Color]
 
-
 class Empty(Piece):
     def __init__(self, *_):
         super().__init__(Color.NONE)
@@ -88,7 +90,6 @@ class Pawn(Piece):
             if enpassant_trgt == (pos[0], (to := Move(pos, Flag.ENPASSANT) + d)[1])
         )
 
-        
         # Pincer
         all_moves.extend(
             Move(to, Flag.PROMOTION if to[0] == enemy_br else Flag.NONE)
@@ -324,9 +325,9 @@ class Move(Position):
 
     def __radd__(self, other: Position):
         return self.__add__(other)
-
-
-
+    
+    def delta(self, delta: Position) -> Self:
+        return Move((self[0] + delta[0], self[1] + delta[1]), self.flag)
 
 
 @in_bounds
