@@ -12,8 +12,8 @@ from typing import Callable, Iterable, Self, Type
 import numpy as np
 
 from .setup import Setup
-from .types import Position
 
+Position = tuple[int, int]
 
 def ib(pos: Position):
     return max(pos) <= 7 and min(pos) >= 0
