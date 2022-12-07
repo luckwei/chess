@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import UserDict
 from dataclasses import InitVar, dataclass, field
 from enum import Enum, auto
+from functools import partial
 from itertools import product
 from tkinter import Button, Event, Tk
 from tkinter.messagebox import showinfo
@@ -11,7 +12,7 @@ from tksvg import SvgImage
 
 from .constants import SIZE, THEME
 from .game import FEN_MAP, Board, Empty, Move, Piece, Position
-from functools import partial
+
 
 class State(Enum):
     DEFAULT = auto()
@@ -217,7 +218,6 @@ class Root(Display):
                 del self[pos].state
             for move in board.all_moves[pos]:
                 del self[move].state
-
 
         for pos, btn in self.items():
             btn.bind("<ButtonRelease-1>", partial(on_click, pos=pos))
