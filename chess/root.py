@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import UserDict
 from dataclasses import InitVar, dataclass, field
 from enum import Enum, auto
+from functools import partial
 from itertools import product
 from tkinter import Button, Event, Tk
 from tkinter.messagebox import showinfo
@@ -162,69 +163,63 @@ class Root(Display):
     def bind_buttons(self):
         board = self.board
 
-        def bind_factory(pos: Position):
-            btn = self[pos]
+        def on_click(e: Event, pos: Position) -> None:
+            selected = self.selected
+            all_moves = board.all_moves
 
-            def on_click(e: Event) -> None:
-                selected = self.selected
-                all_moves = board.all_moves
+            # There was a selected move previously
+            if selected:
+                self.selected = None  # Consume selection
 
-                # There was a selected move previously
-                if selected:
-                    self.selected = None  # Consume selection
-
-                    # Contiguous reset
-                    del self[selected].state
-                    for move in all_moves[selected]:
-                        del self[move].state
-                    # Check all moves
-                    for move in all_moves[selected]:
-                        if pos == selected:
-                            return
-
-                        if pos == move:
-                            self.execute_move_root(selected, move)
-                            return
-                # No selected move previously, also an unmovable tile
-
-                if board.checked:
-                    self[board.find_king()].state = State.KING_CHECK
-                if pos not in all_moves:
-                    return
-
-                # Tile is valid, so select it
-                for move in all_moves[pos]:
-                    self[move].state = State.CAPTURE if board[move] else State.MOVE
-
-                btn.state = State.SELECTED
-                self.selected = pos
-
-            def on_enter(e: Event) -> None:
-                all_moves = board.all_moves
-
-                if self.selected or pos not in all_moves:
-                    return
-
-                btn.state = State.SELECTED
-
-                for move in all_moves[pos]:
-                    self[move].state = State.CAPTURE if board[move] else State.MOVE
-
-            def on_exit(e: Event) -> None:
-                if self.selected or pos not in board.all_moves:
-                    return
-
-                if board.checked and pos == board.find_king():
-                    self[pos].state = State.KING_CHECK
-                else:
-                    del btn.state
-                for move in board.all_moves[pos]:
+                # Contiguous reset
+                del self[selected].state
+                for move in all_moves[selected]:
                     del self[move].state
+                # Check all moves
+                for move in all_moves[selected]:
+                    if pos == selected:
+                        return
 
-            return on_click, on_enter, on_exit
+                    if pos == move:
+                        self.execute_move_root(selected, move)
+                        return
+            # No selected move previously, also an unmovable tile
+
+            if board.checked:
+                self[board.find_king()].state = State.KING_CHECK
+            if pos not in all_moves:
+                return
+
+            # Tile is valid, so select it
+            for move in all_moves[pos]:
+                self[move].state = State.CAPTURE if board[move] else State.MOVE
+
+            self[pos].state = State.SELECTED
+            self.selected = pos
+
+        def on_enter(e: Event, pos: Position) -> None:
+            all_moves = board.all_moves
+
+            if self.selected or pos not in all_moves:
+                return
+
+            self[pos].state = State.SELECTED
+
+            for move in all_moves[pos]:
+                self[move].state = State.CAPTURE if board[move] else State.MOVE
+
+        def on_exit(e: Event, pos: Position) -> None:
+            if self.selected or pos not in board.all_moves:
+                return
+
+            if board.checked and pos == board.find_king():
+                self[pos].state = State.KING_CHECK
+            else:
+                del self[pos].state
+            for move in board.all_moves[pos]:
+                del self[move].state
 
         for pos, btn in self.items():
-            on_click, on_enter, on_exit = bind_factory(pos)
-            btn.bind("<ButtonRelease-1>", on_click)
-            btn.bind("<Enter>", on_enter)
-            btn.bind("<Leave>", on_exit)
+            btn.bind("<ButtonRelease-1>", partial(on_click, pos=pos))
+            btn.bind("<Enter>", partial(on_enter, pos=pos))
+            btn.bind("<Leave>", partial(on_exit, pos=pos))
