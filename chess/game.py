@@ -218,7 +218,7 @@ class CastlingPerm(UserDict[tuple[Color, Flag], bool]):
         }
 
     def falsify(self, color: Color, flag: Flag = Flag.LOSE_KING_PRIV) -> None:
-        if Flag.LOSE_KING_PRIV:
+        if flag == Flag.LOSE_KING_PRIV:
             self[color, Flag.CASTLE_QSIDE] = False
             self[color, Flag.CASTLE_KSIDE] = False
             return
