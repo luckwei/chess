@@ -7,21 +7,33 @@ api = Flask(__name__)
 
 from chess import Board
 
-new_board = Board()
-
-all_moves = new_board.all_moves_cache
-
-empty = {}
-
-for pos, moves in all_moves.items():
-    empty[pos] = [move.updates for move in moves]
+board = Board()
 
 
-try_this = empty
+@api.route("/api/new_random_game")
+def new_random_game():
+    board.set_fen(random=True)
+
+    return {
+        "updates": board.data,
+        "available_moves": board.all_move_pos_only,
+    }
 
 
-@api.route("/api/profile")
-def my_profile():
-    response_body = {"data": try_this}
+@api.route("/api/choose_move/<string:frm>_<string:to>")
+def choose_move(frm: str, to: str):
+    move = board.get_move(frm, to)
+    if move is None:
+        return "MOVE DOES NOT EXIST"
 
-    return response_body
+    board.execute_move_on_board(move)
+
+    return {
+        "updates": move.updates,
+        "available_moves": board.all_move_pos_only,
+    }
+
+
+@api.route("/api/")
+def home():
+    return {"updates": board.data, "available_moves": board.all_move_pos_only}

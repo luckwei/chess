@@ -395,7 +395,7 @@ def final_checks(
 
     # simulate move and check if king safe
     end_game = deepcopy(board)
-    end_game.update_from_move(move)
+    end_game.update_pieces_from_move(move)
 
     return not end_game.checked
 
@@ -440,7 +440,7 @@ class Board(UserDict[str, Piece]):
     color_move: Color = field(init=False)
     castling_perm: CastlingPerm = field(init=False)
     enpassant_target: str | None = field(init=False)
-    all_moves_cache: dict[str, list[Move]] = field(init=False)
+    all_moves_cache: dict[str, dict[str, Move]] = field(init=False)
 
     def __post_init__(self, fen_string):
         self.set_fen(fen_string)
@@ -503,29 +503,31 @@ class Board(UserDict[str, Piece]):
         return not self.all_moves_cache and self.checked
 
     @property
-    def stalemated(self, color: Color | None = None) -> bool:
+    def stalemated(self) -> bool:
         return not self.all_moves_cache and not self.checked
 
     def recompute_all_moves(self, color: Color | None = None) -> None:
         color = self.color_move if color is None else color
 
         self.all_moves_cache = {
-            pos: moves
+            pos: {move.to: move for move in moves}
             for pos, piece in self.items()
             if piece.color == color and (moves := piece.moves(self, pos))
         }
 
-    def update_from_move(self, move: Move) -> None:
+    def update_pieces_from_move(self, move: Move) -> None:
         for pos, piece in move.updates.items():
             self[pos] = piece
 
-    def execute_move(self, move: Move) -> None:
+        
+    
+    def execute_move_on_board(self, move: Move) -> None:
         color = self.color_move
         castling_perm = self.castling_perm
         back_rank = color.back_rank
         castling_flag = move.castling_flag
 
-        self.update_from_move(move)
+        self.update_pieces_from_move(move)
 
         if castling_flag == CastlingFlag.QUEEN_SIDE:
             castling_perm.remove(color, castling_flag)
@@ -547,3 +549,23 @@ class Board(UserDict[str, Piece]):
         self.enpassant_target = move.enpassant_target
         self.color_move = self.color_move.other
         self.recompute_all_moves()
+    
+    def get_move(self, frm: str, to:str) -> Move|None:
+        try:
+            return self.all_moves_cache[frm][to]
+        except KeyError:
+            print("THIS MOVE DOES NOT EXIST")
+            return
+
+        
+    @property
+    def all_move_pos_only(self) -> dict[str, list[str]]:
+        return {pos: list(moves.keys()) for pos, moves in self.all_moves_cache.items()}
+
+#DONE TODO: INITIAL LOAD BOARD
+#DONE TODO: SEND REQUEST TO RESTART BOARD
+#DONE TODO: GET BOARD LAYOUT
+#DONE TODO: GET POSSIBLE MOVES
+#DONE TODO: SEND CHOSEN MOVE
+#DONE TODO: GET REFRESH PIECES INSTRUCTIONS
+#DONE TODO: GET NEW POSSIBLE MOVES
