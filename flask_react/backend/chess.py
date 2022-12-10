@@ -16,8 +16,15 @@ class Setup:
     START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 
-def in_bounds(pos: Pos):
-    return max(pos.row, pos.col) <= 7 and min(pos.row, pos.col) >= 0
+def in_bounds(pos: str) -> bool:
+    return max(pos_tup(pos)) <= 7 and min(pos_tup(pos)) >= 0
+
+
+def add_pos(pos: str, other: str | tuple[int, int]) -> str:
+    pos_row, pos_col = pos_tup(pos)
+    other_row, other_col = pos_tup(other) if isinstance(other, str) else other
+
+    return pos_str(pos_row + other_row, pos_col + other_col)
 
 
 class Color(StrEnum):
@@ -45,37 +52,28 @@ class Color(StrEnum):
         return {Color.WHITE: 6, Color.BLACK: 1}.get(self, -1)
 
 
-class Pos(str):
-    row: int
-    col: int
+def pos_str(row: int, col: int) -> str:
+    return f"{row},{col}"
 
-    def __new__(cls, row: int, col: int) -> Self:
-        self = super().__new__(cls, f"{row},{col}")
-        self.row, self.col = row, col
-        return self
-    
 
-    
-    def add(self, other: Pos | tuple[int, int]) -> Self:
-
-        other_row, other_col = (other.row, other.col) if isinstance(other, Pos) else other
-
-        return Pos(self.row + other_row, self.col + other_col)
+def pos_tup(pos_str: str) -> tuple[int, int]:
+    return tuple(int(coord) for coord in pos_str.split(","))
 
 
 # Chess Pieces and its subclasses
-@dataclass(slots=True, frozen=True, eq=True)
+@dataclass(slots=True, eq=True)
 class Piece(ABC):
     color: Color
+    type: str
 
     @abstractmethod
-    def moves(self, board: Board, pos: Pos) -> list[Move]:
+    def moves(self, board: Board, pos: str) -> list[Move]:
         ...
 
-
+@dataclass
 class Empty(Piece):
-    def __init__(self, *_):
-        super().__init__(Color.NONE)
+    color: Color = Color.NONE
+    type: str = "none"
 
     def __bool__(self):
         return False
@@ -83,10 +81,13 @@ class Empty(Piece):
     def moves(self, *_: Any) -> list[Move]:
         return []
 
-
+@dataclass
 class Pawn(Piece):
-    def moves(self, board: Board, frm: Pos) -> list[Move]:
+    type: str = "pawn"
+    def moves(self, board: Board, frm: str) -> list[Move]:
         possible_moves: list[Move] = []
+
+        frm_row, frm_col = pos_tup(frm)
 
         color = self.color
         dir = color.dir
@@ -94,37 +95,40 @@ class Pawn(Piece):
         enemy_br = color.other.back_rank
 
         for side in [1, -1]:
-            to = frm.add((dir, side))
-
+            to = add_pos(frm, (dir, side))
+            to_row, to_col = pos_tup(to)
             # Enpassant
-            if enpassant_target and enpassant_target == (frm.row, to.col):
+            if enpassant_target and enpassant_target == (frm_row, to_col):
                 possible_moves.append(
                     Move(self, frm, to, enpassant_capture=enpassant_target)
                 )
 
             # Capture/Promotion
             if in_bounds(to) and board[to].color == color.other:
-                possible_moves.append(Move(self, frm, to, promote=to.row == enemy_br))
+                possible_moves.append(Move(self, frm, to, promote=to_row == enemy_br))
 
         # Front long
-        front_long = frm.add((2 * dir, 0))
-        if frm.row == color.pawn_rank and not board[front_long]:
+        front_long = add_pos(frm, (2 * dir, 0))
+        if frm_row == color.pawn_rank and not board[front_long]:
             possible_moves.append(
                 Move(self, frm, front_long, enpassant_target=enpassant_target)
             )
 
         # Front short/Promotion
-        front_short = frm.add((dir, 0))
+        front_short = add_pos(frm, (dir, 0))
         if not board[front_short]:
             possible_moves.append(
-                Move(self, frm, front_short, promote=front_short.row == enemy_br)
+                Move(
+                    self, frm, front_short, promote=pos_tup(front_short)[0] == enemy_br
+                )
             )
 
         return [move for move in possible_moves if final_checks(board, move)]
 
-
+@dataclass
 class Rook(Piece):
-    def moves(self, board: Board, frm: Pos) -> list[Move]:
+    type: str = "rook"
+    def moves(self, board: Board, frm: str) -> list[Move]:
         return [
             move
             for to in perpendicular_moves(frm)
@@ -134,36 +138,40 @@ class Rook(Piece):
             )
         ]
 
-
+@dataclass
 class Knight(Piece):
-    def moves(self, board: Board, frm: Pos) -> list[Move]:
+    type: str = "knight"
+    def moves(self, board: Board, frm: str) -> list[Move]:
         return [
             move
             for to in l_shaped_moves(frm)
             if final_checks(board, move := Move(self, frm, to))
         ]
 
-
+@dataclass
 class Bishop(Piece):
-    def moves(self, board: Board, frm: Pos) -> list[Move]:
+    type:str="bishop"
+    def moves(self, board: Board, frm: str) -> list[Move]:
         return [
             move
             for to in diagonal_moves(frm)
             if final_checks(board, move := Move(self, frm, to))
         ]
 
-
+@dataclass
 class Queen(Piece):
-    def moves(self, board: Board, frm: Pos) -> list[Move]:
+    type: str="queen"
+    def moves(self, board: Board, frm: str) -> list[Move]:
         return [
             move
             for to in [*diagonal_moves(frm), *perpendicular_moves(frm)]
             if final_checks(board, move := Move(self, frm, to))
         ]
 
-
+@dataclass
 class King(Piece):
-    def moves(self, board: Board, frm: Pos) -> list[Move]:
+    type: str = "king"
+    def moves(self, board: Board, frm: str) -> list[Move]:
         color = self.color
         back_rank = color.back_rank
         castling_perm = board.castling_perm
@@ -176,22 +184,32 @@ class King(Piece):
         if (
             castling_perm[color, CastlingFlag.KING_SIDE]
             and king_not_checked
-            and kingcheck_safe(board, Pos(back_rank, 5))
-            and not any(board[Pos(back_rank, col)] for col in [5, 6])
+            and kingcheck_safe(board, pos_str(back_rank, 5))
+            and not any(board[pos_str(back_rank, col)] for col in [5, 6])
         ):
             possible_moves.append(
-                Move(self, frm, frm.add((0, 2)), castling_flag=CastlingFlag.KING_SIDE)
+                Move(
+                    self,
+                    frm,
+                    add_pos(frm, (0, 2)),
+                    castling_flag=CastlingFlag.KING_SIDE,
+                )
             )
 
         # Queen-side castle
         if (
             castling_perm[color, CastlingFlag.QUEEN_SIDE]
             and king_not_checked
-            and kingcheck_safe(board, Pos(back_rank, 3))
-            and not any(board[Pos(back_rank, col)] for col in [1, 2, 3])
+            and kingcheck_safe(board, pos_str(back_rank, 3))
+            and not any(board[pos_str(back_rank, col)] for col in [1, 2, 3])
         ):
             possible_moves.append(
-                Move(self, frm, frm.add((0, -2)), castling_flag=CastlingFlag.QUEEN_SIDE)
+                Move(
+                    self,
+                    frm,
+                    add_pos(frm, (0, -2)),
+                    castling_flag=CastlingFlag.QUEEN_SIDE,
+                )
             )
 
         # Normal moves
@@ -251,7 +269,7 @@ class CastlingPerm(UserDict[tuple[Color, CastlingFlag], bool]):
         self[color, flag] = False
 
 
-def kingcheck_safe(board: Board, pos: Pos, color: Color | None = None) -> bool:
+def kingcheck_safe(board: Board, pos: str, color: Color | None = None) -> bool:
     if color is None:
         color = board.color_move
     enemy_color = color.other
@@ -284,19 +302,20 @@ def kingcheck_safe(board: Board, pos: Pos, color: Color | None = None) -> bool:
 
     # check pincer for pawn
     return not any(
-        in_bounds(m := pos.add((color.dir, side))) and board[m] == Pawn(enemy_color)
+        in_bounds(m := add_pos(pos, (color.dir, side)))
+        and board[m] == Pawn(enemy_color)
         for side in [1, -1]
     )
 
 
 @dataclass
 class Move:
-    updates: dict[Pos, Piece] = field(init=False, default_factory=dict)
+    updates: dict[str, Piece] = field(init=False, default_factory=dict)
     piece: Piece
-    frm: Pos
-    to: Pos
-    enpassant_capture: Pos | None = None
-    enpassant_target: Pos | None = None
+    frm: str
+    to: str
+    enpassant_capture: str | None = None
+    enpassant_target: str | None = None
     castling_flag: CastlingFlag | None = None
     promote: InitVar[bool] = False
 
@@ -315,17 +334,19 @@ class Move:
             updates[enpassant_capture] = Empty()
 
         if self.castling_flag == CastlingFlag.QUEEN_SIDE:
-            self.updates[Pos(back_rank, 3)] = Rook(color)
-            self.updates[Pos(back_rank, 0)] = Empty()
+            self.updates[pos_str(back_rank, 3)] = Rook(color)
+            self.updates[pos_str(back_rank, 0)] = Empty()
 
         elif self.castling_flag == CastlingFlag.KING_SIDE:
-            self.updates[Pos(back_rank, 5)] = Rook(color)
-            self.updates[Pos(back_rank, 7)] = Empty()
+            self.updates[pos_str(back_rank, 5)] = Rook(color)
+            self.updates[pos_str(back_rank, 7)] = Empty()
 
 
-def obstruction(board: Board, frm: Pos, to: Pos) -> bool:
-    ROWS = range(frm.row, to.row, 1 if to.row > frm.row else -1)
-    COLS = range(frm.col, to.col, 1 if to.col > frm.col else -1)
+def obstruction(board: Board, frm: str, to: str) -> bool:
+    frm_row, frm_col = pos_tup(frm)
+    to_row, to_col = pos_tup(to)
+    ROWS = range(frm_row, to_row, 1 if to_row > frm_row else -1)
+    COLS = range(frm_col, to_col, 1 if to_col > frm_col else -1)
 
     # short moves and knights have no obstruction
     if min(len(ROWS), len(COLS)) == 1:
@@ -334,19 +355,20 @@ def obstruction(board: Board, frm: Pos, to: Pos) -> bool:
     # If both exist, diag move
     if ROWS and COLS:
         return not any(
-            Pos(row, col) != frm and board[Pos(row, col)]
+            pos_str(row, col) != frm and board[pos_str(row, col)]
             for row, col in zip(ROWS, COLS)
         )
 
     # If x exists, perp col, same column
     if ROWS:
         return not any(
-            Pos(row, frm.col) != frm and board[Pos(row, frm.col)] for row in ROWS
+            pos_str(row, frm_col) != frm and board[pos_str(row, frm_col)]
+            for row in ROWS
         )
 
     # Else y exists, perp col, same row
     return not any(
-        Pos(frm.row, col) != frm and board[Pos(frm.row, col)] for col in COLS
+        pos_str(frm_row, col) != frm and board[pos_str(frm_row, col)] for col in COLS
     )
 
 
@@ -375,7 +397,7 @@ def final_checks(
     return not end_game.checked
 
 
-def diagonal_moves(pos: Pos, distance=7) -> Iterable[Pos]:
+def diagonal_moves(pos: str, distance=7) -> Iterable[str]:
     quadrants = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = zip((mag := range(1, distance + 1)), mag)
     deltas = (
@@ -383,10 +405,10 @@ def diagonal_moves(pos: Pos, distance=7) -> Iterable[Pos]:
         for quadrant, magnitude in product(quadrants, magnitude)
     )
 
-    return (to for delta in deltas if in_bounds(to := pos.add(delta)))
+    return (to for delta in deltas if in_bounds(to := add_pos(pos, delta)))
 
 
-def perpendicular_moves(pos: Pos, distance=7) -> Iterable[Pos]:
+def perpendicular_moves(pos: str, distance=7) -> Iterable[str]:
     sides = [(0, 1), (1, 0), (0, -1), (-1, 0)]
     magnitude = zip((mag := range(1, distance + 1)), mag)
     deltas = (
@@ -394,10 +416,10 @@ def perpendicular_moves(pos: Pos, distance=7) -> Iterable[Pos]:
         for side, magnitude in product(sides, magnitude)
     )
 
-    return (to for delta in deltas if in_bounds(to := pos.add(delta)))
+    return (to for delta in deltas if in_bounds(to := add_pos(pos, delta)))
 
 
-def l_shaped_moves(pos: Pos) -> Iterable[Pos]:
+def l_shaped_moves(pos: str) -> Iterable[str]:
     quadrants = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     magnitude = [(1, 2), (2, 1)]
     deltas = (
@@ -405,17 +427,17 @@ def l_shaped_moves(pos: Pos) -> Iterable[Pos]:
         for quadrant, magnitude in product(quadrants, magnitude)
     )
 
-    return (to for delta in deltas if in_bounds(to := pos.add(delta)))
+    return (to for delta in deltas if in_bounds(to := add_pos(pos, delta)))
 
 
 @dataclass(slots=True)
-class Board(UserDict[Pos, Piece]):
+class Board(UserDict[str, Piece]):
     fen_string: InitVar[str | None] = Setup.START
 
     color_move: Color = field(init=False)
     castling_perm: CastlingPerm = field(init=False)
-    enpassant_target: Pos | None = field(init=False)
-    all_moves_cache: dict[Pos, list[Move]] = field(init=False)
+    enpassant_target: str | None = field(init=False)
+    all_moves_cache: dict[str, list[Move]] = field(init=False)
 
     def __post_init__(self, fen_string):
         self.set_fen(fen_string)
@@ -448,15 +470,17 @@ class Board(UserDict[Pos, Piece]):
             self.enpassant_target = None
         else:
             col, row = enpassant_trgt
-            self.enpassant_target = Pos(8 - int(row), "abcdefgh".index(col))
+            self.enpassant_target = pos_str(8 - int(row), "abcdefgh".index(col))
 
         for i in "12345678":
             board_config = board_config.replace(i, " " * int(i))
 
-        self.data = {Pos(*divmod(i, 8)): FEN_MAP[p] for i, p in enumerate(board_config)}
+        self.data = {
+            pos_str(*divmod(i, 8)): FEN_MAP[p] for i, p in enumerate(board_config)
+        }
         self.recompute_all_moves()
 
-    def find_king(self, color: Color | None = None) -> Pos:
+    def find_king(self, color: Color | None = None) -> str:
         if color is None:
             color = self.color_move
         return next(
@@ -513,7 +537,7 @@ class Board(UserDict[Pos, Piece]):
             castling_perm.remove(
                 color,
                 CastlingFlag.QUEEN_SIDE
-                if move.frm == Pos(back_rank, 0)
+                if move.frm == pos_str(back_rank, 0)
                 else CastlingFlag.KING_SIDE,
             )
 

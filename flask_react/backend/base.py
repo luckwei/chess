@@ -9,10 +9,15 @@ from chess import Board
 
 new_board = Board()
 
+all_moves = new_board.all_moves_cache
+
+empty = {}
+
+for pos, moves in all_moves.items():
+    empty[pos] = [move.updates for move in moves]
 
 
-try_this = new_board.all_moves_cache
-
+try_this = empty
 
 
 @api.route("/api/profile")
