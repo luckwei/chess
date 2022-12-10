@@ -343,6 +343,7 @@ class Move:
 
 
 def obstruction(board: Board, frm: str, to: str) -> bool:
+    # return False
     frm_row, frm_col = pos_tup(frm)
     to_row, to_col = pos_tup(to)
     ROWS = range(frm_row, to_row, 1 if to_row > frm_row else -1)
@@ -350,24 +351,26 @@ def obstruction(board: Board, frm: str, to: str) -> bool:
 
     # short moves and knights have no obstruction
     if min(len(ROWS), len(COLS)) == 1:
-        return True
+        return False
 
     # If both exist, diag move
     if ROWS and COLS:
-        return not any(
+        return any(
             pos_str(row, col) != frm and board[pos_str(row, col)]
             for row, col in zip(ROWS, COLS)
         )
 
     # If x exists, perp col, same column
     if ROWS:
-        return not any(
+        return any(
             pos_str(row, frm_col) != frm and board[pos_str(row, frm_col)]
             for row in ROWS
         )
+        
+    
 
     # Else y exists, perp col, same row
-    return not any(
+    return any(
         pos_str(frm_row, col) != frm and board[pos_str(frm_row, col)] for col in COLS
     )
 
