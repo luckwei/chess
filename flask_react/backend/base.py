@@ -34,6 +34,6 @@ def choose_move(frm: str, to: str):
     }
 
 
-@api.route("/api/")
+@api.route("/api/board")
 def home():
     return {"updates": board.data, "available_moves": board.all_move_pos_only}
